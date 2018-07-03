@@ -7253,7 +7253,7 @@ class basic_json
         // type check: top level value must be an array
         if (JSON_UNLIKELY(not json_patch.is_array()))
         {
-            JSON_THROW(parse_error::create(104, 0, "JSON patch must be an array of objects"));
+            JSON_THROW(parse_error::create(104, {}, "JSON patch must be an array of objects"));
         }
 
         // iterate and apply the operations
@@ -7273,13 +7273,13 @@ class basic_json
                 // check if desired value is present
                 if (JSON_UNLIKELY(it == val.m_value.object->end()))
                 {
-                    JSON_THROW(parse_error::create(105, 0, error_msg + " must have member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, {}, error_msg + " must have member '" + member + "'"));
                 }
 
                 // check if result is of type string
                 if (JSON_UNLIKELY(string_type and not it->second.is_string()))
                 {
-                    JSON_THROW(parse_error::create(105, 0, error_msg + " must have string member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, {}, error_msg + " must have string member '" + member + "'"));
                 }
 
                 // no error: return value
@@ -7289,7 +7289,7 @@ class basic_json
             // type check: every element of the array must be an object
             if (JSON_UNLIKELY(not val.is_object()))
             {
-                JSON_THROW(parse_error::create(104, 0, "JSON patch must be an array of objects"));
+                JSON_THROW(parse_error::create(104, {}, "JSON patch must be an array of objects"));
             }
 
             // collect mandatory members
@@ -7377,7 +7377,7 @@ class basic_json
                 {
                     // op must be "add", "remove", "replace", "move", "copy", or
                     // "test"
-                    JSON_THROW(parse_error::create(105, 0, "operation value '" + op + "' is invalid"));
+                    JSON_THROW(parse_error::create(105, {}, "operation value '" + op + "' is invalid"));
                 }
             }
         }

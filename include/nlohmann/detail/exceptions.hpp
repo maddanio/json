@@ -4,6 +4,8 @@
 #include <stdexcept> // runtime_error
 #include <string> // to_string
 
+#include "source_location.hpp"
+
 namespace nlohmann
 {
 namespace detail
@@ -119,12 +121,16 @@ class parse_error : public exception
     @param[in] what_arg  the explanatory string
     @return parse_error object
     */
-    static parse_error create(int id_, std::size_t byte_, const std::string& what_arg)
+    static parse_error create(
+      int id_,
+      source_location_t source_location,
+      const std::string& what_arg
+    )
     {
         std::string w = exception::name("parse_error", id_) + "parse error" +
-                        (byte_ != 0 ? (" at " + std::to_string(byte_)) : "") +
+                        (source_location.byte_pos ? (" at " + std::to_string(source_location)) : "") +
                         ": " + what_arg;
-        return parse_error(id_, byte_, w.c_str());
+        return parse_error(id_, source_location, w.c_str());
     }
 
     /*!
@@ -136,11 +142,11 @@ class parse_error : public exception
           n+1 is the index of the terminating null byte or the end of file.
           This also holds true when reading a byte vector (CBOR or MessagePack).
     */
-    const std::size_t byte;
+    source_location_t source_location;
 
   private:
-    parse_error(int id_, std::size_t byte_, const char* what_arg)
-        : exception(id_, what_arg), byte(byte_) {}
+    parse_error(int id_, source_location_t source_location_, const char* what_arg)
+        : exception(id_, what_arg), source_location(source_location_) {}
 };
 
 /*!

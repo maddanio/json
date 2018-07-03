@@ -1155,9 +1155,9 @@ scan_number_done:
     /////////////////////
 
     /// return position of last read token
-    constexpr std::size_t get_position() const noexcept
+    constexpr source_location_t get_position() const noexcept
     {
-        return chars_read;
+        return {chars_read, line, chars_read - line_start};
     }
 
     /// return the last read token (for errors only).  Will never contain EOF
@@ -1237,6 +1237,12 @@ scan_number_done:
         do
         {
             get();
+            if (current == '\n')
+            {
+                ++line;
+                line_start = chars_read;
+            }
+
         }
         while (current == ' ' or current == '\t' or current == '\n' or current == '\r');
 
@@ -1307,6 +1313,8 @@ scan_number_done:
 
     /// the number of characters read
     std::size_t chars_read = 0;
+    std::size_t line = 0;
+    std::size_t line_start = 0;
 
     /// raw input token string (for error messages)
     std::vector<char> token_string {};

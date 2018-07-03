@@ -181,7 +181,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, {}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -255,7 +255,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, {},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -275,7 +275,7 @@ class json_pointer
                         }
                         JSON_CATCH(std::invalid_argument&)
                         {
-                            JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                            JSON_THROW(detail::parse_error::create(109, {}, "array index '" + reference_token + "' is not a number"));
                         }
                     }
                     break;
@@ -322,7 +322,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, {},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -334,7 +334,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, {}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -387,7 +387,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, {},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -400,7 +400,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, {}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -446,7 +446,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, {},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -458,7 +458,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, {}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -493,9 +493,12 @@ class json_pointer
         // check if nonempty reference string begins with slash
         if (JSON_UNLIKELY(reference_string[0] != '/'))
         {
-            JSON_THROW(detail::parse_error::create(107, 1,
-                                                   "JSON pointer must be empty or begin with '/' - was: '" +
-                                                   reference_string + "'"));
+            JSON_THROW(detail::parse_error::create(
+                107, 
+                {1, 0, 1},
+               "JSON pointer must be empty or begin with '/' - was: '" +
+               reference_string + "'"
+            ));
         }
 
         // extract the reference tokens:
@@ -530,7 +533,11 @@ class json_pointer
                                   (reference_token[pos + 1] != '0' and
                                    reference_token[pos + 1] != '1')))
                 {
-                    JSON_THROW(detail::parse_error::create(108, 0, "escape character '~' must be followed with '0' or '1'"));
+                    JSON_THROW(detail::parse_error::create(
+                        108, 
+                        {}, 
+                        "escape character '~' must be followed with '0' or '1'"
+                    ));
                 }
             }
 

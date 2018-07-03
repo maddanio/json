@@ -24,6 +24,7 @@ struct json_sax
     using number_float_t = typename BasicJsonType::number_float_t;
     /// type for strings
     using string_t = typename BasicJsonType::string_t;
+    using source_location_t = typename nlohmann::detail::source_location_t;
 
     /// constant to indicate that no size limit is given for array or object
     static constexpr auto no_limit = std::size_t(-1);
@@ -112,7 +113,7 @@ struct json_sax
     @param[in] error_msg   a detailed error message
     @return whether parsing should proceed (must return false)
     */
-    virtual bool parse_error(std::size_t position,
+    virtual bool parse_error(source_location_t position,
                              const std::string& last_token,
                              const detail::exception& ex) = 0;
 
@@ -234,7 +235,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&,
+    bool parse_error(source_location_t, const std::string&,
                      const detail::exception& ex) override
     {
         errored = true;
@@ -490,7 +491,7 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&,
+    bool parse_error(source_location_t, const std::string&,
                      const detail::exception& ex) override
     {
         errored = true;
