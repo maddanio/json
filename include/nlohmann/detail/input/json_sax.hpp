@@ -77,28 +77,28 @@ struct json_sax
     @brief a null value was read
     @return whether parsing should proceed
     */
-    virtual bool null() = 0;
+    virtual bool null() {return true;};
 
     /*!
     @brief a boolean value was read
     @param[in] val  boolean value
     @return whether parsing should proceed
     */
-    virtual bool boolean(bool val) = 0;
+    virtual bool boolean(bool val) {return true;};
 
     /*!
     @brief an integer number was read
     @param[in] val  integer value
     @return whether parsing should proceed
     */
-    virtual bool number_integer(number_integer_t val) = 0;
+    virtual bool number_integer(number_integer_t val) {return true;};
 
     /*!
     @brief an unsigned integer number was read
     @param[in] val  unsigned integer value
     @return whether parsing should proceed
     */
-    virtual bool number_unsigned(number_unsigned_t val) = 0;
+    virtual bool number_unsigned(number_unsigned_t val) {return true;};
 
     /*!
     @brief an floating-point number was read
@@ -106,14 +106,14 @@ struct json_sax
     @param[in] s    raw token value
     @return whether parsing should proceed
     */
-    virtual bool number_float(number_float_t val, const string_t& s) = 0;
+    virtual bool number_float(number_float_t val, const string_t& s) {return true;};
 
     /*!
     @brief a string was read
     @param[in] val  string value
     @return whether parsing should proceed
     */
-    virtual bool string(string_t& val) = 0;
+    virtual bool string(string_t& val) {return true;};
 
     /*!
     @brief the beginning of an object was read
@@ -121,20 +121,20 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_object(std::size_t elements) = 0;
+    virtual bool start_object(std::size_t elements) {return true;};
 
     /*!
     @brief an object key was read
     @param[in] val  object key
     @return whether parsing should proceed
     */
-    virtual bool key(string_t& val) = 0;
+    virtual bool key(string_t& val) {return true;};
 
     /*!
     @brief the end of an object was read
     @return whether parsing should proceed
     */
-    virtual bool end_object() = 0;
+    virtual bool end_object() {return true;};
 
     /*!
     @brief the beginning of an array was read
@@ -142,13 +142,13 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_array(std::size_t elements) = 0;
+    virtual bool start_array(std::size_t elements) {return true;};
 
     /*!
     @brief the end of an array was read
     @return whether parsing should proceed
     */
-    virtual bool end_array() = 0;
+    virtual bool end_array() {return true;};
 
     /*!
     @brief a parse error occurred
@@ -159,7 +159,7 @@ struct json_sax
     */
     virtual bool parse_error(source_location_t position,
                              const std::string& last_token,
-                             const detail::exception& ex) = 0;
+                             const detail::exception& ex) {return false;};
 
     virtual ~json_sax() = default;
 };
@@ -188,6 +188,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
     using number_unsigned_t = typename BasicJsonType::number_unsigned_t;
     using number_float_t = typename BasicJsonType::number_float_t;
     using string_t = typename BasicJsonType::string_t;
+    typedef nlohmann::detail::source_location_t source_location_t;
 
     /*!
     @param[in, out] r  reference to a JSON value that is manipulated while
@@ -198,45 +199,45 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         : root(r), allow_exceptions(allow_exceptions_)
     {}
 
-    bool null() override
+    bool null(source_location_t loc) override
     {
-        handle_value(nullptr);
+        handle_value(nullptr, loc);
         return true;
     }
 
-    bool boolean(bool val) override
+    bool boolean(bool val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_integer(number_integer_t val) override
+    bool number_integer(number_integer_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t val) override
+    bool number_unsigned(number_unsigned_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_float(number_float_t val, const string_t&) override
+    bool number_float(number_float_t val, const string_t&, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool string(string_t& val) override
+    bool string(string_t& val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool start_object(std::size_t len) override
+    bool start_object(std::size_t len, source_location_t loc) override
     {
-        ref_stack.push_back(handle_value(BasicJsonType::value_t::object));
+        ref_stack.push_back(handle_value(BasicJsonType::value_t::object, loc));
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
@@ -247,22 +248,22 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool key(string_t& val) override
+    bool key(string_t& val, source_location_t loc) override
     {
         // add null at given key and store the reference for later
         object_element = &(ref_stack.back()->m_value.object->operator[](val));
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t loc) override
     {
         ref_stack.pop_back();
         return true;
     }
 
-    bool start_array(std::size_t len) override
+    bool start_array(std::size_t len, source_location_t loc) override
     {
-        ref_stack.push_back(handle_value(BasicJsonType::value_t::array));
+        ref_stack.push_back(handle_value(BasicJsonType::value_t::array, loc));
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
@@ -273,7 +274,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t loc) override
     {
         ref_stack.pop_back();
         return true;
@@ -318,7 +319,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
                object to which we can add elements
     */
     template<typename Value>
-    BasicJsonType* handle_value(Value&& v)
+    BasicJsonType* handle_value(Value&& v, source_location_t loc)
     {
         if (ref_stack.empty())
         {
@@ -330,13 +331,13 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
             assert(ref_stack.back()->is_array() or ref_stack.back()->is_object());
             if (ref_stack.back()->is_array())
             {
-                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v));
+                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v), loc);
                 return &(ref_stack.back()->m_value.array->back());
             }
             else
             {
                 assert(object_element);
-                *object_element = BasicJsonType(std::forward<Value>(v));
+                *object_element = BasicJsonType(std::forward<Value>(v), loc);
                 return object_element;
             }
         }

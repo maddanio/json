@@ -241,7 +241,7 @@ caught.,type_error}
 class type_error : public exception
 {
   public:
-    static type_error create(int id_, const std::string& what_arg)
+    static type_error create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
         std::string w = exception::name("type_error", id_) + what_arg;
         return type_error(id_, w.c_str());

@@ -180,6 +180,8 @@ class basic_json
     /// workaround type for MSVC
     using basic_json_t = NLOHMANN_BASIC_JSON_TPL;
 
+    typedef nlohmann::detail::source_location_t source_location_t;
+
     // convenience aliases for types residing in namespace detail;
     using lexer = ::nlohmann::detail::lexer<basic_json>;
     using parser = ::nlohmann::detail::parser<basic_json>;
@@ -1152,8 +1154,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(const value_t v)
-        : m_type(v), m_value(v)
+    basic_json(const value_t v, source_location_t loc = {})
+        : m_type(v), m_value(v), m_source_location{loc}
     {
         assert_invariant();
     }
@@ -1176,8 +1178,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(std::nullptr_t = nullptr) noexcept
-        : basic_json(value_t::null)
+    basic_json(std::nullptr_t = nullptr, source_location_t loc = {}) noexcept
+        : basic_json(value_t::null, loc)
     {
         assert_invariant();
     }
@@ -1243,9 +1245,10 @@ class basic_json
               typename U = detail::uncvref_t<CompatibleType>,
               detail::enable_if_t<
                   detail::is_compatible_type<basic_json_t, U>::value, int> = 0>
-    basic_json(CompatibleType && val) noexcept(noexcept(
+    basic_json(CompatibleType && val, source_location_t loc = {}) noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
+    : m_source_location{loc}
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         assert_invariant();
@@ -1321,6 +1324,7 @@ class basic_json
                 break;
         }
         assert_invariant();
+        m_source_location = val.m_source_location;
     }
 
     /*!
@@ -1747,6 +1751,7 @@ class basic_json
     */
     basic_json(const basic_json& other)
         : m_type(other.m_type)
+        , m_source_location{other.m_source_location}
     {
         // check of passed value is valid
         other.assert_invariant();
@@ -1830,7 +1835,8 @@ class basic_json
     */
     basic_json(basic_json&& other) noexcept
         : m_type(std::move(other.m_type)),
-          m_value(std::move(other.m_value))
+          m_value(std::move(other.m_value)),
+          m_source_location{std::move(other.m_source_location)}
     {
         // check that passed value is valid
         other.assert_invariant();
@@ -1878,6 +1884,7 @@ class basic_json
         using std::swap;
         swap(m_type, other.m_type);
         swap(m_value, other.m_value);
+        swap(m_source_location, other.m_source_location);
 
         assert_invariant();
         return *this;
@@ -1967,6 +1974,11 @@ class basic_json
         }
 
         return result;
+    }
+
+    source_location_t source_location() const
+    {
+        return m_source_location;
     }
 
     /*!
@@ -6220,6 +6232,7 @@ class basic_json
 
     /// the value of the current element
     json_value m_value = {};
+    source_location_t m_source_location = {};
 
     //////////////////////////////////////////
     // binary serialization/deserialization //
