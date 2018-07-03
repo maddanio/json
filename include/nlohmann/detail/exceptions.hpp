@@ -49,13 +49,16 @@ class exception : public std::runtime_error
     const int id;
 
   protected:
-    exception(int id_, const char* what_arg)
+    exception(int id_, const char* what_arg, source_location_t loc = {})
     : std::runtime_error(what_arg)
     , id(id_) 
     {}
-    static std::string name(const std::string& ename, int id_)
+    static std::string name(const std::string& ename, int id_, source_location_t loc = {})
     {
-        return "[json.exception." + ename + "." + std::to_string(id_) + "] ";
+        return 
+          "[json.exception." + ename + "." + std::to_string(id_) + 
+          (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
+          "] ";
     }
 };
 
@@ -115,30 +118,18 @@ class parse_error : public exception
     */
     static parse_error create(
       int id_,
-      source_location_t source_location,
+      source_location_t loc,
       const std::string& what_arg
     )
     {
-        std::string w = exception::name("parse_error", id_) + "parse error" +
-                        (source_location.byte_pos ? (" at " + std::to_string(source_location)) : "") +
+        std::string w = exception::name("parse_error", id_, loc) + "parse error" +
                         ": " + what_arg;
-        return parse_error(id_, source_location, w.c_str());
+        return parse_error(id_, loc, w.c_str());
     }
 
-    /*!
-    @brief byte index of the parse error
-
-    The byte index of the last read character in the input file.
-
-    @note For an input with n bytes, 1 is the index of the first character and
-          n+1 is the index of the terminating null byte or the end of file.
-          This also holds true when reading a byte vector (CBOR or MessagePack).
-    */
-    source_location_t source_location;
-
   private:
-    parse_error(int id_, source_location_t source_location_, const char* what_arg)
-        : exception(id_, what_arg), source_location(source_location_) {}
+    parse_error(int id_, source_location_t loc, const char* what_arg)
+        : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -181,15 +172,15 @@ caught.,invalid_iterator}
 class invalid_iterator : public exception
 {
   public:
-    static invalid_iterator create(int id_, const std::string& what_arg)
+    static invalid_iterator create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
-        std::string w = exception::name("invalid_iterator", id_) + what_arg;
-        return invalid_iterator(id_, w.c_str());
+        std::string w = exception::name("invalid_iterator", id_, loc) + what_arg;
+        return invalid_iterator(id_, w.c_str(), loc);
     }
 
   private:
-    invalid_iterator(int id_, const char* what_arg)
-        : exception(id_, what_arg) {}
+    invalid_iterator(int id_, const char* what_arg, source_location_t loc)
+        : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -235,14 +226,14 @@ class type_error : public exception
   public:
     static type_error create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
-        std::string w = exception::name("type_error", id_) + what_arg;
-        if (loc.byte_pos)
-          w += "@" + std::to_string(loc);
-        return type_error(id_, w.c_str());
+        std::string w = exception::name("type_error", id_, loc) + what_arg;
+        return type_error(id_, w.c_str(), loc);
     }
 
   private:
-    type_error(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    type_error(int id_, const char* what_arg, source_location_t loc)
+    : exception(id_, what_arg, loc)
+    {}
 };
 
 /*!
@@ -280,14 +271,14 @@ caught.,out_of_range}
 class out_of_range : public exception
 {
   public:
-    static out_of_range create(int id_, const std::string& what_arg)
+    static out_of_range create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
-        std::string w = exception::name("out_of_range", id_) + what_arg;
-        return out_of_range(id_, w.c_str());
+        std::string w = exception::name("out_of_range", id_, loc) + what_arg;
+        return out_of_range(id_, w.c_str(), loc);
     }
 
   private:
-    out_of_range(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    out_of_range(int id_, const char* what_arg, source_location_t loc) : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -317,14 +308,14 @@ caught.,other_error}
 class other_error : public exception
 {
   public:
-    static other_error create(int id_, const std::string& what_arg)
+    static other_error create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
-        std::string w = exception::name("other_error", id_) + what_arg;
-        return other_error(id_, w.c_str());
+        std::string w = exception::name("other_error", id_, loc) + what_arg;
+        return other_error(id_, w.c_str(), loc);
     }
 
   private:
-    other_error(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    other_error(int id_, const char* what_arg, source_location_t loc) : exception(id_, what_arg, loc) {}
 };
 }
 }

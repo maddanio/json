@@ -241,8 +241,11 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408,
-                                            "excessive object size: " + std::to_string(len)));
+            JSON_THROW(out_of_range::create(
+                408,
+                "excessive object size: " + std::to_string(len),
+                loc
+            ));
         }
 
         return true;
@@ -267,8 +270,11 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408,
-                                            "excessive array size: " + std::to_string(len)));
+            JSON_THROW(out_of_range::create(
+                408,
+                "excessive array size: " + std::to_string(len),
+                loc
+            ));
         }
 
         return true;
@@ -280,8 +286,11 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(source_location_t, const std::string&,
-                     const detail::exception& ex) override
+    bool parse_error(
+        source_location_t, 
+        const std::string&,
+        const detail::exception& ex
+    ) override
     {
         errored = true;
         if (allow_exceptions)
@@ -374,49 +383,49 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         keep_stack.push_back(true);
     }
 
-    bool null() override
+    bool null(source_location_t loc) override
     {
-        handle_value(nullptr);
+        handle_value(nullptr, false, loc);
         return true;
     }
 
-    bool boolean(bool val) override
+    bool boolean(bool val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_integer(number_integer_t val) override
+    bool number_integer(number_integer_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t val) override
+    bool number_unsigned(number_unsigned_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_float(number_float_t val, const string_t&) override
+    bool number_float(number_float_t val, const string_t&, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool string(string_t& val) override
+    bool string(string_t& val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool start_object(std::size_t len) override
+    bool start_object(std::size_t len, source_location_t loc) override
     {
         // check callback for object start
         const bool keep = callback(static_cast<int>(ref_stack.size()), parse_event_t::object_start, discarded);
         keep_stack.push_back(keep);
 
-        auto val = handle_value(BasicJsonType::value_t::object, true);
+        auto val = handle_value(BasicJsonType::value_t::object, true, loc);
         ref_stack.push_back(val.second);
 
         // check object limit
@@ -424,15 +433,18 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         {
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
-                JSON_THROW(out_of_range::create(408,
-                                                "excessive object size: " + std::to_string(len)));
+                JSON_THROW(out_of_range::create(
+                    408,
+                    "excessive object size: " + std::to_string(len),
+                    loc
+                ));
             }
         }
 
         return true;
     }
 
-    bool key(string_t& val) override
+    bool key(string_t& val, source_location_t loc) override
     {
         BasicJsonType k = BasicJsonType(val);
 
@@ -449,7 +461,7 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t loc) override
     {
         if (ref_stack.back())
         {
@@ -484,12 +496,12 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool start_array(std::size_t len) override
+    bool start_array(std::size_t len, source_location_t loc) override
     {
         const bool keep = callback(static_cast<int>(ref_stack.size()), parse_event_t::array_start, discarded);
         keep_stack.push_back(keep);
 
-        auto val = handle_value(BasicJsonType::value_t::array, true);
+        auto val = handle_value(BasicJsonType::value_t::array, true, loc);
         ref_stack.push_back(val.second);
 
         // check array limit
@@ -497,15 +509,18 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         {
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
-                JSON_THROW(out_of_range::create(408,
-                                                "excessive array size: " + std::to_string(len)));
+                JSON_THROW(out_of_range::create(
+                    408,
+                    "excessive array size: " + std::to_string(len),
+                    loc
+                ));
             }
         }
 
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t loc) override
     {
         bool keep = true;
 
@@ -584,7 +599,11 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
             passed value in the ref_stack hierarchy; nullptr if not kept)
     */
     template<typename Value>
-    std::pair<bool, BasicJsonType*> handle_value(Value&& v, const bool skip_callback = false)
+    std::pair<bool, BasicJsonType*> handle_value(
+        Value&& v,
+        const bool skip_callback = false,
+        source_location_t loc = {}
+    )
     {
         assert(not keep_stack.empty());
 
@@ -596,10 +615,14 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         }
 
         // create value
-        auto value = BasicJsonType(std::forward<Value>(v));
+        auto value = BasicJsonType(std::forward<Value>(v), loc);
 
         // check callback
-        const bool keep = skip_callback or callback(static_cast<int>(ref_stack.size()), parse_event_t::value, value);
+        const bool keep = skip_callback or callback(
+            static_cast<int>(ref_stack.size()),
+            parse_event_t::value,
+            value
+        );
 
         // do not handle this value if we just learnt it shall be discarded
         if (not keep)
