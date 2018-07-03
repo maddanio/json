@@ -42,29 +42,21 @@ caught.,exception}
 
 @since version 3.0.0
 */
-class exception : public std::exception
+class exception : public std::runtime_error
 {
   public:
-    /// returns the explanatory string
-    const char* what() const noexcept override
-    {
-        return m.what();
-    }
-
     /// the id of the exception
     const int id;
 
   protected:
-    exception(int id_, const char* what_arg) : id(id_), m(what_arg) {}
-
+    exception(int id_, const char* what_arg)
+    : std::runtime_error(what_arg)
+    , id(id_) 
+    {}
     static std::string name(const std::string& ename, int id_)
     {
         return "[json.exception." + ename + "." + std::to_string(id_) + "] ";
     }
-
-  private:
-    /// an exception object as storage for error messages
-    std::runtime_error m;
 };
 
 /*!
@@ -244,6 +236,8 @@ class type_error : public exception
     static type_error create(int id_, const std::string& what_arg, source_location_t loc = {})
     {
         std::string w = exception::name("type_error", id_) + what_arg;
+        if (loc.byte_pos)
+          w += "@" + std::to_string(loc);
         return type_error(id_, w.c_str());
     }
 
