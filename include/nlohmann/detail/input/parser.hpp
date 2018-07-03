@@ -177,7 +177,7 @@ class parser
                 {
                     case token_type::begin_object:
                     {
-                        if (JSON_UNLIKELY(not sax->start_object()))
+                        if (JSON_UNLIKELY(not sax->start_object(-1, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -185,7 +185,7 @@ class parser
                         // closing } -> we are done
                         if (get_token() == token_type::end_object)
                         {
-                            if (JSON_UNLIKELY(not sax->end_object()))
+                            if (JSON_UNLIKELY(not sax->end_object(m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -201,7 +201,7 @@ class parser
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -225,7 +225,7 @@ class parser
 
                     case token_type::begin_array:
                     {
-                        if (JSON_UNLIKELY(not sax->start_array()))
+                        if (JSON_UNLIKELY(not sax->start_array(-1, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -233,7 +233,7 @@ class parser
                         // closing ] -> we are done
                         if (get_token() == token_type::end_array)
                         {
-                            if (JSON_UNLIKELY(not sax->end_array()))
+                            if (JSON_UNLIKELY(not sax->end_array(m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -259,7 +259,7 @@ class parser
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->number_float(res, m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->number_float(res, m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -269,7 +269,7 @@ class parser
 
                     case token_type::literal_false:
                     {
-                        if (JSON_UNLIKELY(not sax->boolean(false)))
+                        if (JSON_UNLIKELY(not sax->boolean(false, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -278,7 +278,7 @@ class parser
 
                     case token_type::literal_null:
                     {
-                        if (JSON_UNLIKELY(not sax->null()))
+                        if (JSON_UNLIKELY(not sax->null(m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -287,7 +287,7 @@ class parser
 
                     case token_type::literal_true:
                     {
-                        if (JSON_UNLIKELY(not sax->boolean(true)))
+                        if (JSON_UNLIKELY(not sax->boolean(true, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -296,7 +296,7 @@ class parser
 
                     case token_type::value_integer:
                     {
-                        if (JSON_UNLIKELY(not sax->number_integer(m_lexer.get_number_integer())))
+                        if (JSON_UNLIKELY(not sax->number_integer(m_lexer.get_number_integer(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -305,7 +305,7 @@ class parser
 
                     case token_type::value_string:
                     {
-                        if (JSON_UNLIKELY(not sax->string(m_lexer.get_string())))
+                        if (JSON_UNLIKELY(not sax->string(m_lexer.get_string(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -314,7 +314,7 @@ class parser
 
                     case token_type::value_unsigned:
                     {
-                        if (JSON_UNLIKELY(not sax->number_unsigned(m_lexer.get_number_unsigned())))
+                        if (JSON_UNLIKELY(not sax->number_unsigned(m_lexer.get_number_unsigned(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -363,7 +363,7 @@ class parser
                     // closing ]
                     if (JSON_LIKELY(last_token == token_type::end_array))
                     {
-                        if (JSON_UNLIKELY(not sax->end_array()))
+                        if (JSON_UNLIKELY(not sax->end_array(m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -398,7 +398,7 @@ class parser
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -420,7 +420,7 @@ class parser
                     // closing }
                     if (JSON_LIKELY(last_token == token_type::end_object))
                     {
-                        if (JSON_UNLIKELY(not sax->end_object()))
+                        if (JSON_UNLIKELY(not sax->end_object(m_lexer.get_position())))
                         {
                             return false;
                         }

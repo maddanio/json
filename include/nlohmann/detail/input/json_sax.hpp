@@ -29,6 +29,50 @@ struct json_sax
     /// constant to indicate that no size limit is given for array or object
     static constexpr auto no_limit = std::size_t(-1);
 
+    virtual bool null(source_location_t loc)
+    {
+        return null();  
+    }
+    virtual bool boolean(bool val, source_location_t loc)
+    {
+        return boolean(val);  
+    }
+    virtual bool number_integer(number_integer_t val, source_location_t loc)
+    {
+        return number_integer(val);  
+    }
+    virtual bool number_unsigned(number_unsigned_t val, source_location_t loc)
+    {
+        return number_unsigned(val);  
+    }
+    virtual bool number_float(number_float_t val, const string_t& s, source_location_t loc)
+    {
+        return number_float(val, s);  
+    }
+    virtual bool string(string_t& val, source_location_t loc)
+    {
+        return string(val);
+    }
+    virtual bool start_object(std::size_t elements, source_location_t loc)
+    {
+        return start_object(elements);
+    }
+    virtual bool key(string_t& val, source_location_t loc)
+    {
+        return key(val);  
+    }
+    virtual bool end_object(source_location_t loc)
+    {
+        return end_object();
+    }
+    virtual bool start_array(std::size_t elements, source_location_t loc)
+    {
+        return start_array(elements);  
+    }
+    virtual bool end_array(source_location_t loc)
+    {
+        return end_array();
+    }
     /*!
     @brief a null value was read
     @return whether parsing should proceed
@@ -77,7 +121,7 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_object(std::size_t elements = no_limit) = 0;
+    virtual bool start_object(std::size_t elements) = 0;
 
     /*!
     @brief an object key was read
@@ -98,7 +142,7 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_array(std::size_t elements = no_limit) = 0;
+    virtual bool start_array(std::size_t elements) = 0;
 
     /*!
     @brief the end of an array was read
