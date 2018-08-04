@@ -1193,6 +1193,7 @@ TEST_CASE("constructors")
         SECTION("cnt = 0")
         {
             json v = {1, "foo", 34.23, {1, 2, 3}, {{"A", 1}, {"B", 2u}}};
+            nlohmann::detail::source_location_t loc = v;
             json arr(0, v);
             CHECK(arr.size() == 0);
         }

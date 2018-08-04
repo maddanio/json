@@ -31,23 +31,23 @@ struct json_sax
 
     virtual bool null(source_location_t loc)
     {
-        return null();  
+        return null();
     }
     virtual bool boolean(bool val, source_location_t loc)
     {
-        return boolean(val);  
+        return boolean(val);
     }
     virtual bool number_integer(number_integer_t val, source_location_t loc)
     {
-        return number_integer(val);  
+        return number_integer(val);
     }
     virtual bool number_unsigned(number_unsigned_t val, source_location_t loc)
     {
-        return number_unsigned(val);  
+        return number_unsigned(val);
     }
     virtual bool number_float(number_float_t val, const string_t& s, source_location_t loc)
     {
-        return number_float(val, s);  
+        return number_float(val, s);
     }
     virtual bool string(string_t& val, source_location_t loc)
     {
@@ -59,7 +59,7 @@ struct json_sax
     }
     virtual bool key(string_t& val, source_location_t loc)
     {
-        return key(val);  
+        return key(val);
     }
     virtual bool end_object(source_location_t loc)
     {
@@ -67,7 +67,7 @@ struct json_sax
     }
     virtual bool start_array(std::size_t elements, source_location_t loc)
     {
-        return start_array(elements);  
+        return start_array(elements);
     }
     virtual bool end_array(source_location_t loc)
     {
@@ -77,28 +77,40 @@ struct json_sax
     @brief a null value was read
     @return whether parsing should proceed
     */
-    virtual bool null() {return true;};
+    virtual bool null()
+    {
+        return true;
+    };
 
     /*!
     @brief a boolean value was read
     @param[in] val  boolean value
     @return whether parsing should proceed
     */
-    virtual bool boolean(bool val) {return true;};
+    virtual bool boolean(bool val)
+    {
+        return true;
+    };
 
     /*!
     @brief an integer number was read
     @param[in] val  integer value
     @return whether parsing should proceed
     */
-    virtual bool number_integer(number_integer_t val) {return true;};
+    virtual bool number_integer(number_integer_t val)
+    {
+        return true;
+    };
 
     /*!
     @brief an unsigned integer number was read
     @param[in] val  unsigned integer value
     @return whether parsing should proceed
     */
-    virtual bool number_unsigned(number_unsigned_t val) {return true;};
+    virtual bool number_unsigned(number_unsigned_t val)
+    {
+        return true;
+    };
 
     /*!
     @brief an floating-point number was read
@@ -106,14 +118,20 @@ struct json_sax
     @param[in] s    raw token value
     @return whether parsing should proceed
     */
-    virtual bool number_float(number_float_t val, const string_t& s) {return true;};
+    virtual bool number_float(number_float_t val, const string_t& s)
+    {
+        return true;
+    };
 
     /*!
     @brief a string was read
     @param[in] val  string value
     @return whether parsing should proceed
     */
-    virtual bool string(string_t& val) {return true;};
+    virtual bool string(string_t& val)
+    {
+        return true;
+    };
 
     /*!
     @brief the beginning of an object was read
@@ -121,20 +139,29 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_object(std::size_t elements) {return true;};
+    virtual bool start_object(std::size_t elements)
+    {
+        return true;
+    };
 
     /*!
     @brief an object key was read
     @param[in] val  object key
     @return whether parsing should proceed
     */
-    virtual bool key(string_t& val) {return true;};
+    virtual bool key(string_t& val)
+    {
+        return true;
+    };
 
     /*!
     @brief the end of an object was read
     @return whether parsing should proceed
     */
-    virtual bool end_object() {return true;};
+    virtual bool end_object()
+    {
+        return true;
+    };
 
     /*!
     @brief the beginning of an array was read
@@ -142,13 +169,19 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_array(std::size_t elements) {return true;};
+    virtual bool start_array(std::size_t elements)
+    {
+        return true;
+    };
 
     /*!
     @brief the end of an array was read
     @return whether parsing should proceed
     */
-    virtual bool end_array() {return true;};
+    virtual bool end_array()
+    {
+        return true;
+    };
 
     /*!
     @brief a parse error occurred
@@ -157,9 +190,13 @@ struct json_sax
     @param[in] error_msg   a detailed error message
     @return whether parsing should proceed (must return false)
     */
-    virtual bool parse_error(source_location_t position,
-                             const std::string& last_token,
-                             const detail::exception& ex) {return false;};
+    virtual bool parse_error(
+        const std::string& last_token,
+        const detail::exception& ex
+    )
+    {
+        return false;
+    };
 
     virtual ~json_sax() = default;
 };
@@ -242,10 +279,10 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
             JSON_THROW(out_of_range::create(
-                408,
-                "excessive object size: " + std::to_string(len),
-                loc
-            ));
+                           408,
+                           "excessive object size: " + std::to_string(len),
+                           loc
+                       ));
         }
 
         return true;
@@ -271,10 +308,10 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
             JSON_THROW(out_of_range::create(
-                408,
-                "excessive array size: " + std::to_string(len),
-                loc
-            ));
+                           408,
+                           "excessive array size: " + std::to_string(len),
+                           loc
+                       ));
         }
 
         return true;
@@ -287,7 +324,6 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
     }
 
     bool parse_error(
-        source_location_t, 
         const std::string&,
         const detail::exception& ex
     ) override
@@ -434,10 +470,10 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
                 JSON_THROW(out_of_range::create(
-                    408,
-                    "excessive object size: " + std::to_string(len),
-                    loc
-                ));
+                               408,
+                               "excessive object size: " + std::to_string(len),
+                               loc
+                           ));
             }
         }
 
@@ -510,10 +546,10 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
                 JSON_THROW(out_of_range::create(
-                    408,
-                    "excessive array size: " + std::to_string(len),
-                    loc
-                ));
+                               408,
+                               "excessive array size: " + std::to_string(len),
+                               loc
+                           ));
             }
         }
 
@@ -551,8 +587,10 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(source_location_t, const std::string&,
-                     const detail::exception& ex) override
+    bool parse_error(
+        const std::string&,
+        const detail::exception& ex
+    ) override
     {
         errored = true;
         if (allow_exceptions)
@@ -602,7 +640,7 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
     std::pair<bool, BasicJsonType*> handle_value(
         Value&& v,
         const bool skip_callback = false,
-        source_location_t loc = {}
+        source_location_t loc = source_location_t{}
     )
     {
         assert(not keep_stack.empty());
@@ -619,10 +657,10 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
 
         // check callback
         const bool keep = skip_callback or callback(
-            static_cast<int>(ref_stack.size()),
-            parse_event_t::value,
-            value
-        );
+                              static_cast<int>(ref_stack.size()),
+                              parse_event_t::value,
+                              value
+                          );
 
         // do not handle this value if we just learnt it shall be discarded
         if (not keep)
@@ -746,7 +784,7 @@ class json_sax_acceptor : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&, const detail::exception&) override
+    bool parse_error(const std::string&, const detail::exception&) override
     {
         return false;
     }

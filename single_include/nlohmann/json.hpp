@@ -73,6 +73,11 @@ for serialization.
 template<typename T = void, typename SFINAE = void>
 struct adl_serializer;
 
+namespace detail
+{
+struct source_location_t;
+}
+
 template<template<typename U, typename V, typename... Args> class ObjectType =
          std::map,
          template<typename U, typename... Args> class ArrayType = std::vector,
@@ -82,7 +87,8 @@ template<template<typename U, typename V, typename... Args> class ObjectType =
          class NumberFloatType = double,
          template<typename U> class AllocatorType = std::allocator,
          template<typename T, typename SFINAE = void> class JSONSerializer =
-         adl_serializer>
+         adl_serializer,
+         class SourceLocation = detail::source_location_t>
 class basic_json;
 
 /*!
@@ -203,12 +209,13 @@ using json = basic_json<>;
              class StringType, class BooleanType, class NumberIntegerType, \
              class NumberUnsignedType, class NumberFloatType,              \
              template<typename> class AllocatorType,                       \
-             template<typename, typename = void> class JSONSerializer>
+             template<typename, typename = void> class JSONSerializer,     \
+             class SourceLocation>
 
 #define NLOHMANN_BASIC_JSON_TPL                                            \
     basic_json<ObjectType, ArrayType, StringType, BooleanType,             \
     NumberIntegerType, NumberUnsignedType, NumberFloatType,                \
-    AllocatorType, JSONSerializer>
+    AllocatorType, JSONSerializer, SourceLocation>
 
 /*!
 @brief Helper to determine whether there's a key_type for T.
@@ -520,6 +527,48 @@ constexpr T static_const<T>::value;
 #include <stdexcept> // runtime_error
 #include <string> // to_string
 
+// #include "source_location.hpp"
+
+
+#include <cstddef> // size_t
+#include <string> // to_string
+
+namespace nlohmann
+{
+namespace detail
+{
+struct source_location_t
+{
+    std::size_t byte_pos;
+    std::size_t line;
+    std::size_t column;
+    explicit constexpr source_location_t(
+        std::size_t byte_pos = 0,
+        std::size_t line = 0,
+        std::size_t column = 0
+    ) noexcept
+        : byte_pos
+    {
+        byte_pos
+    }
+    , line{line}
+    , column{column}
+    {}
+};
+}
+}
+
+namespace std
+{
+inline std::string to_string(nlohmann::detail::source_location_t loc)
+{
+    return
+        "byte: " + to_string(loc.byte_pos) +
+        " line: " + to_string(loc.line) +
+        " column: " + to_string(loc.column);
+}
+}
+
 namespace nlohmann
 {
 namespace detail
@@ -556,29 +605,30 @@ caught.,exception}
 
 @since version 3.0.0
 */
-class exception : public std::exception
+class exception : public std::runtime_error
 {
   public:
-    /// returns the explanatory string
-    const char* what() const noexcept override
-    {
-        return m.what();
-    }
-
     /// the id of the exception
     const int id;
+    const source_location_t loc;
 
   protected:
-    exception(int id_, const char* what_arg) : id(id_), m(what_arg) {}
-
-    static std::string name(const std::string& ename, int id_)
+    exception(int id_, const char* what_arg, source_location_t loc = source_location_t{})
+        : std::runtime_error(what_arg)
+        , id(id_)
+    {}
+    static std::string name(const std::string& ename, int id_, source_location_t loc = source_location_t{})
     {
-        return "[json.exception." + ename + "." + std::to_string(id_) + "] ";
+        return
+            "[json.exception." + ename + "." + std::to_string(id_) +
+            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
+            "] ";
     }
-
-  private:
-    /// an exception object as storage for error messages
-    std::runtime_error m;
+  public:
+    source_location_t location() const
+    {
+        return loc;
+    }
 };
 
 /*!
@@ -635,28 +685,20 @@ class parse_error : public exception
     @param[in] what_arg  the explanatory string
     @return parse_error object
     */
-    static parse_error create(int id_, std::size_t byte_, const std::string& what_arg)
+    static parse_error create(
+        int id_,
+        source_location_t loc,
+        const std::string& what_arg
+    )
     {
-        std::string w = exception::name("parse_error", id_) + "parse error" +
-                        (byte_ != 0 ? (" at " + std::to_string(byte_)) : "") +
+        std::string w = exception::name("parse_error", id_, loc) + "parse error" +
                         ": " + what_arg;
-        return parse_error(id_, byte_, w.c_str());
+        return parse_error(id_, loc, w.c_str());
     }
 
-    /*!
-    @brief byte index of the parse error
-
-    The byte index of the last read character in the input file.
-
-    @note For an input with n bytes, 1 is the index of the first character and
-          n+1 is the index of the terminating null byte or the end of file.
-          This also holds true when reading a byte vector (CBOR or MessagePack).
-    */
-    const std::size_t byte;
-
   private:
-    parse_error(int id_, std::size_t byte_, const char* what_arg)
-        : exception(id_, what_arg), byte(byte_) {}
+    parse_error(int id_, source_location_t loc, const char* what_arg)
+        : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -699,15 +741,15 @@ caught.,invalid_iterator}
 class invalid_iterator : public exception
 {
   public:
-    static invalid_iterator create(int id_, const std::string& what_arg)
+    static invalid_iterator create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
-        std::string w = exception::name("invalid_iterator", id_) + what_arg;
-        return invalid_iterator(id_, w.c_str());
+        std::string w = exception::name("invalid_iterator", id_, loc) + what_arg;
+        return invalid_iterator(id_, w.c_str(), loc);
     }
 
   private:
-    invalid_iterator(int id_, const char* what_arg)
-        : exception(id_, what_arg) {}
+    invalid_iterator(int id_, const char* what_arg, source_location_t loc)
+        : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -751,14 +793,16 @@ caught.,type_error}
 class type_error : public exception
 {
   public:
-    static type_error create(int id_, const std::string& what_arg)
+    static type_error create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
-        std::string w = exception::name("type_error", id_) + what_arg;
-        return type_error(id_, w.c_str());
+        std::string w = exception::name("type_error", id_, loc) + what_arg;
+        return type_error(id_, w.c_str(), loc);
     }
 
   private:
-    type_error(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    type_error(int id_, const char* what_arg, source_location_t loc)
+        : exception(id_, what_arg, loc)
+    {}
 };
 
 /*!
@@ -796,14 +840,14 @@ caught.,out_of_range}
 class out_of_range : public exception
 {
   public:
-    static out_of_range create(int id_, const std::string& what_arg)
+    static out_of_range create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
-        std::string w = exception::name("out_of_range", id_) + what_arg;
-        return out_of_range(id_, w.c_str());
+        std::string w = exception::name("out_of_range", id_, loc) + what_arg;
+        return out_of_range(id_, w.c_str(), loc);
     }
 
   private:
-    out_of_range(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    out_of_range(int id_, const char* what_arg, source_location_t loc) : exception(id_, what_arg, loc) {}
 };
 
 /*!
@@ -833,14 +877,14 @@ caught.,other_error}
 class other_error : public exception
 {
   public:
-    static other_error create(int id_, const std::string& what_arg)
+    static other_error create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
-        std::string w = exception::name("other_error", id_) + what_arg;
-        return other_error(id_, w.c_str());
+        std::string w = exception::name("other_error", id_, loc) + what_arg;
+        return other_error(id_, w.c_str(), loc);
     }
 
   private:
-    other_error(int id_, const char* what_arg) : exception(id_, what_arg) {}
+    other_error(int id_, const char* what_arg, source_location_t loc) : exception(id_, what_arg, loc) {}
 };
 }
 }
@@ -978,7 +1022,7 @@ void get_arithmetic_value(const BasicJsonType& j, ArithmeticType& val)
         }
 
         default:
-            JSON_THROW(type_error::create(302, "type must be number, but is " + std::string(j.type_name())));
+            JSON_THROW(type_error::create(302, "type must be number, but is " + std::string(j.type_name()), j.source_location()));
     }
 }
 
@@ -987,7 +1031,7 @@ void from_json(const BasicJsonType& j, typename BasicJsonType::boolean_t& b)
 {
     if (JSON_UNLIKELY(not j.is_boolean()))
     {
-        JSON_THROW(type_error::create(302, "type must be boolean, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be boolean, but is " + std::string(j.type_name()), j.source_location()));
     }
     b = *j.template get_ptr<const typename BasicJsonType::boolean_t*>();
 }
@@ -997,7 +1041,7 @@ void from_json(const BasicJsonType& j, typename BasicJsonType::string_t& s)
 {
     if (JSON_UNLIKELY(not j.is_string()))
     {
-        JSON_THROW(type_error::create(302, "type must be string, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be string, but is " + std::string(j.type_name()), j.source_location()));
     }
     s = *j.template get_ptr<const typename BasicJsonType::string_t*>();
 }
@@ -1013,7 +1057,7 @@ void from_json(const BasicJsonType& j, CompatibleStringType& s)
 {
     if (JSON_UNLIKELY(not j.is_string()))
     {
-        JSON_THROW(type_error::create(302, "type must be string, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be string, but is " + std::string(j.type_name()), j.source_location()));
     }
 
     s = *j.template get_ptr<const typename BasicJsonType::string_t*>();
@@ -1051,7 +1095,7 @@ void from_json(const BasicJsonType& j, typename BasicJsonType::array_t& arr)
 {
     if (JSON_UNLIKELY(not j.is_array()))
     {
-        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name()), j.source_location()));
     }
     arr = *j.template get_ptr<const typename BasicJsonType::array_t*>();
 }
@@ -1063,7 +1107,7 @@ void from_json(const BasicJsonType& j, std::forward_list<T, Allocator>& l)
 {
     if (JSON_UNLIKELY(not j.is_array()))
     {
-        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name()), j.source_location()));
     }
     std::transform(j.rbegin(), j.rend(),
                    std::front_inserter(l), [](const BasicJsonType & i)
@@ -1079,7 +1123,7 @@ void from_json(const BasicJsonType& j, std::valarray<T>& l)
 {
     if (JSON_UNLIKELY(not j.is_array()))
     {
-        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name()), j.source_location()));
     }
     l.resize(j.size());
     std::copy(j.m_value.array->begin(), j.m_value.array->end(), std::begin(l));
@@ -1152,7 +1196,7 @@ void from_json(const BasicJsonType& j, CompatibleObjectType& obj)
 {
     if (JSON_UNLIKELY(not j.is_object()))
     {
-        JSON_THROW(type_error::create(302, "type must be object, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be object, but is " + std::string(j.type_name()), j.source_location()));
     }
 
     auto inner_object = j.template get_ptr<const typename BasicJsonType::object_t*>();
@@ -1204,7 +1248,7 @@ void from_json(const BasicJsonType& j, ArithmeticType& val)
         }
 
         default:
-            JSON_THROW(type_error::create(302, "type must be number, but is " + std::string(j.type_name())));
+            JSON_THROW(type_error::create(302, "type must be number, but is " + std::string(j.type_name()), j.source_location()));
     }
 }
 
@@ -1233,13 +1277,13 @@ void from_json(const BasicJsonType& j, std::map<Key, Value, Compare, Allocator>&
 {
     if (JSON_UNLIKELY(not j.is_array()))
     {
-        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name()), j.source_location()));
     }
     for (const auto& p : j)
     {
         if (JSON_UNLIKELY(not p.is_array()))
         {
-            JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(p.type_name())));
+            JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(p.type_name()), j.source_location()));
         }
         m.emplace(p.at(0).template get<Key>(), p.at(1).template get<Value>());
     }
@@ -1252,13 +1296,13 @@ void from_json(const BasicJsonType& j, std::unordered_map<Key, Value, Hash, KeyE
 {
     if (JSON_UNLIKELY(not j.is_array()))
     {
-        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name())));
+        JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(j.type_name()), j.source_location()));
     }
     for (const auto& p : j)
     {
         if (JSON_UNLIKELY(not p.is_array()))
         {
-            JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(p.type_name())));
+            JSON_THROW(type_error::create(302, "type must be array, but is " + std::string(p.type_name()), j.source_location()));
         }
         m.emplace(p.at(0).template get<Key>(), p.at(1).template get<Value>());
     }
@@ -3335,9 +3379,9 @@ scan_number_done:
     /////////////////////
 
     /// return position of last read token
-    constexpr std::size_t get_position() const noexcept
+    constexpr source_location_t get_position() const noexcept
     {
-        return chars_read;
+        return source_location_t{chars_read, line, chars_read - line_start};
     }
 
     /// return the last read token (for errors only).  Will never contain EOF
@@ -3417,6 +3461,12 @@ scan_number_done:
         do
         {
             get();
+            if (current == '\n')
+            {
+                ++line;
+                line_start = chars_read;
+            }
+
         }
         while (current == ' ' or current == '\t' or current == '\n' or current == '\r');
 
@@ -3487,6 +3537,8 @@ scan_number_done:
 
     /// the number of characters read
     std::size_t chars_read = 0;
+    std::size_t line = 0;
+    std::size_t line_start = 0;
 
     /// raw input token string (for error messages)
     std::vector<char> token_string {};
@@ -3553,36 +3605,93 @@ struct json_sax
     using number_float_t = typename BasicJsonType::number_float_t;
     /// type for strings
     using string_t = typename BasicJsonType::string_t;
+    using source_location_t = typename nlohmann::detail::source_location_t;
 
     /// constant to indicate that no size limit is given for array or object
     static constexpr auto no_limit = std::size_t(-1);
 
+    virtual bool null(source_location_t loc)
+    {
+        return null();
+    }
+    virtual bool boolean(bool val, source_location_t loc)
+    {
+        return boolean(val);
+    }
+    virtual bool number_integer(number_integer_t val, source_location_t loc)
+    {
+        return number_integer(val);
+    }
+    virtual bool number_unsigned(number_unsigned_t val, source_location_t loc)
+    {
+        return number_unsigned(val);
+    }
+    virtual bool number_float(number_float_t val, const string_t& s, source_location_t loc)
+    {
+        return number_float(val, s);
+    }
+    virtual bool string(string_t& val, source_location_t loc)
+    {
+        return string(val);
+    }
+    virtual bool start_object(std::size_t elements, source_location_t loc)
+    {
+        return start_object(elements);
+    }
+    virtual bool key(string_t& val, source_location_t loc)
+    {
+        return key(val);
+    }
+    virtual bool end_object(source_location_t loc)
+    {
+        return end_object();
+    }
+    virtual bool start_array(std::size_t elements, source_location_t loc)
+    {
+        return start_array(elements);
+    }
+    virtual bool end_array(source_location_t loc)
+    {
+        return end_array();
+    }
     /*!
     @brief a null value was read
     @return whether parsing should proceed
     */
-    virtual bool null() = 0;
+    virtual bool null()
+    {
+        return true;
+    };
 
     /*!
     @brief a boolean value was read
     @param[in] val  boolean value
     @return whether parsing should proceed
     */
-    virtual bool boolean(bool val) = 0;
+    virtual bool boolean(bool val)
+    {
+        return true;
+    };
 
     /*!
     @brief an integer number was read
     @param[in] val  integer value
     @return whether parsing should proceed
     */
-    virtual bool number_integer(number_integer_t val) = 0;
+    virtual bool number_integer(number_integer_t val)
+    {
+        return true;
+    };
 
     /*!
     @brief an unsigned integer number was read
     @param[in] val  unsigned integer value
     @return whether parsing should proceed
     */
-    virtual bool number_unsigned(number_unsigned_t val) = 0;
+    virtual bool number_unsigned(number_unsigned_t val)
+    {
+        return true;
+    };
 
     /*!
     @brief an floating-point number was read
@@ -3590,14 +3699,20 @@ struct json_sax
     @param[in] s    raw token value
     @return whether parsing should proceed
     */
-    virtual bool number_float(number_float_t val, const string_t& s) = 0;
+    virtual bool number_float(number_float_t val, const string_t& s)
+    {
+        return true;
+    };
 
     /*!
     @brief a string was read
     @param[in] val  string value
     @return whether parsing should proceed
     */
-    virtual bool string(string_t& val) = 0;
+    virtual bool string(string_t& val)
+    {
+        return true;
+    };
 
     /*!
     @brief the beginning of an object was read
@@ -3605,20 +3720,29 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_object(std::size_t elements = no_limit) = 0;
+    virtual bool start_object(std::size_t elements)
+    {
+        return true;
+    };
 
     /*!
     @brief an object key was read
     @param[in] val  object key
     @return whether parsing should proceed
     */
-    virtual bool key(string_t& val) = 0;
+    virtual bool key(string_t& val)
+    {
+        return true;
+    };
 
     /*!
     @brief the end of an object was read
     @return whether parsing should proceed
     */
-    virtual bool end_object() = 0;
+    virtual bool end_object()
+    {
+        return true;
+    };
 
     /*!
     @brief the beginning of an array was read
@@ -3626,13 +3750,19 @@ struct json_sax
     @return whether parsing should proceed
     @note binary formats may report the number of elements
     */
-    virtual bool start_array(std::size_t elements = no_limit) = 0;
+    virtual bool start_array(std::size_t elements)
+    {
+        return true;
+    };
 
     /*!
     @brief the end of an array was read
     @return whether parsing should proceed
     */
-    virtual bool end_array() = 0;
+    virtual bool end_array()
+    {
+        return true;
+    };
 
     /*!
     @brief a parse error occurred
@@ -3641,9 +3771,13 @@ struct json_sax
     @param[in] error_msg   a detailed error message
     @return whether parsing should proceed (must return false)
     */
-    virtual bool parse_error(std::size_t position,
-                             const std::string& last_token,
-                             const detail::exception& ex) = 0;
+    virtual bool parse_error(
+        const std::string& last_token,
+        const detail::exception& ex
+    )
+    {
+        return false;
+    };
 
     virtual ~json_sax() = default;
 };
@@ -3672,6 +3806,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
     using number_unsigned_t = typename BasicJsonType::number_unsigned_t;
     using number_float_t = typename BasicJsonType::number_float_t;
     using string_t = typename BasicJsonType::string_t;
+    typedef nlohmann::detail::source_location_t source_location_t;
 
     /*!
     @param[in, out] r  reference to a JSON value that is manipulated while
@@ -3682,89 +3817,97 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
         : root(r), allow_exceptions(allow_exceptions_)
     {}
 
-    bool null() override
+    bool null(source_location_t loc) override
     {
-        handle_value(nullptr);
+        handle_value(nullptr, loc);
         return true;
     }
 
-    bool boolean(bool val) override
+    bool boolean(bool val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_integer(number_integer_t val) override
+    bool number_integer(number_integer_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t val) override
+    bool number_unsigned(number_unsigned_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool number_float(number_float_t val, const string_t&) override
+    bool number_float(number_float_t val, const string_t&, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool string(string_t& val) override
+    bool string(string_t& val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, loc);
         return true;
     }
 
-    bool start_object(std::size_t len) override
+    bool start_object(std::size_t len, source_location_t loc) override
     {
-        ref_stack.push_back(handle_value(BasicJsonType::value_t::object));
+        ref_stack.push_back(handle_value(BasicJsonType::value_t::object, loc));
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408,
-                                            "excessive object size: " + std::to_string(len)));
+            JSON_THROW(out_of_range::create(
+                           408,
+                           "excessive object size: " + std::to_string(len),
+                           loc
+                       ));
         }
 
         return true;
     }
 
-    bool key(string_t& val) override
+    bool key(string_t& val, source_location_t loc) override
     {
         // add null at given key and store the reference for later
         object_element = &(ref_stack.back()->m_value.object->operator[](val));
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t loc) override
     {
         ref_stack.pop_back();
         return true;
     }
 
-    bool start_array(std::size_t len) override
+    bool start_array(std::size_t len, source_location_t loc) override
     {
-        ref_stack.push_back(handle_value(BasicJsonType::value_t::array));
+        ref_stack.push_back(handle_value(BasicJsonType::value_t::array, loc));
 
         if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
         {
-            JSON_THROW(out_of_range::create(408,
-                                            "excessive array size: " + std::to_string(len)));
+            JSON_THROW(out_of_range::create(
+                           408,
+                           "excessive array size: " + std::to_string(len),
+                           loc
+                       ));
         }
 
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t loc) override
     {
         ref_stack.pop_back();
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&,
-                     const detail::exception& ex) override
+    bool parse_error(
+        const std::string&,
+        const detail::exception& ex
+    ) override
     {
         errored = true;
         if (allow_exceptions)
@@ -3802,7 +3945,7 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
                object to which we can add elements
     */
     template<typename Value>
-    BasicJsonType* handle_value(Value&& v)
+    BasicJsonType* handle_value(Value&& v, source_location_t loc)
     {
         if (ref_stack.empty())
         {
@@ -3814,13 +3957,13 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
             assert(ref_stack.back()->is_array() or ref_stack.back()->is_object());
             if (ref_stack.back()->is_array())
             {
-                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v));
+                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v), loc);
                 return &(ref_stack.back()->m_value.array->back());
             }
             else
             {
                 assert(object_element);
-                *object_element = BasicJsonType(std::forward<Value>(v));
+                *object_element = BasicJsonType(std::forward<Value>(v), loc);
                 return object_element;
             }
         }
@@ -3857,49 +4000,49 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         keep_stack.push_back(true);
     }
 
-    bool null() override
+    bool null(source_location_t loc) override
     {
-        handle_value(nullptr);
+        handle_value(nullptr, false, loc);
         return true;
     }
 
-    bool boolean(bool val) override
+    bool boolean(bool val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_integer(number_integer_t val) override
+    bool number_integer(number_integer_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t val) override
+    bool number_unsigned(number_unsigned_t val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool number_float(number_float_t val, const string_t&) override
+    bool number_float(number_float_t val, const string_t&, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool string(string_t& val) override
+    bool string(string_t& val, source_location_t loc) override
     {
-        handle_value(val);
+        handle_value(val, false, loc);
         return true;
     }
 
-    bool start_object(std::size_t len) override
+    bool start_object(std::size_t len, source_location_t loc) override
     {
         // check callback for object start
         const bool keep = callback(static_cast<int>(ref_stack.size()), parse_event_t::object_start, discarded);
         keep_stack.push_back(keep);
 
-        auto val = handle_value(BasicJsonType::value_t::object, true);
+        auto val = handle_value(BasicJsonType::value_t::object, true, loc);
         ref_stack.push_back(val.second);
 
         // check object limit
@@ -3907,15 +4050,18 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         {
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
-                JSON_THROW(out_of_range::create(408,
-                                                "excessive object size: " + std::to_string(len)));
+                JSON_THROW(out_of_range::create(
+                               408,
+                               "excessive object size: " + std::to_string(len),
+                               loc
+                           ));
             }
         }
 
         return true;
     }
 
-    bool key(string_t& val) override
+    bool key(string_t& val, source_location_t loc) override
     {
         BasicJsonType k = BasicJsonType(val);
 
@@ -3932,7 +4078,7 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t loc) override
     {
         if (ref_stack.back())
         {
@@ -3967,12 +4113,12 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool start_array(std::size_t len) override
+    bool start_array(std::size_t len, source_location_t loc) override
     {
         const bool keep = callback(static_cast<int>(ref_stack.size()), parse_event_t::array_start, discarded);
         keep_stack.push_back(keep);
 
-        auto val = handle_value(BasicJsonType::value_t::array, true);
+        auto val = handle_value(BasicJsonType::value_t::array, true, loc);
         ref_stack.push_back(val.second);
 
         // check array limit
@@ -3980,15 +4126,18 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         {
             if (JSON_UNLIKELY(len != json_sax<BasicJsonType>::no_limit and len > ref_stack.back()->max_size()))
             {
-                JSON_THROW(out_of_range::create(408,
-                                                "excessive array size: " + std::to_string(len)));
+                JSON_THROW(out_of_range::create(
+                               408,
+                               "excessive array size: " + std::to_string(len),
+                               loc
+                           ));
             }
         }
 
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t loc) override
     {
         bool keep = true;
 
@@ -4019,8 +4168,10 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&,
-                     const detail::exception& ex) override
+    bool parse_error(
+        const std::string&,
+        const detail::exception& ex
+    ) override
     {
         errored = true;
         if (allow_exceptions)
@@ -4067,7 +4218,11 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
             passed value in the ref_stack hierarchy; nullptr if not kept)
     */
     template<typename Value>
-    std::pair<bool, BasicJsonType*> handle_value(Value&& v, const bool skip_callback = false)
+    std::pair<bool, BasicJsonType*> handle_value(
+        Value&& v,
+        const bool skip_callback = false,
+        source_location_t loc = source_location_t{}
+    )
     {
         assert(not keep_stack.empty());
 
@@ -4079,10 +4234,14 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         }
 
         // create value
-        auto value = BasicJsonType(std::forward<Value>(v));
+        auto value = BasicJsonType(std::forward<Value>(v), loc);
 
         // check callback
-        const bool keep = skip_callback or callback(static_cast<int>(ref_stack.size()), parse_event_t::value, value);
+        const bool keep = skip_callback or callback(
+                              static_cast<int>(ref_stack.size()),
+                              parse_event_t::value,
+                              value
+                          );
 
         // do not handle this value if we just learnt it shall be discarded
         if (not keep)
@@ -4206,7 +4365,7 @@ class json_sax_acceptor : public json_sax<BasicJsonType>
         return true;
     }
 
-    bool parse_error(std::size_t, const std::string&, const detail::exception&) override
+    bool parse_error(const std::string&, const detail::exception&) override
     {
         return false;
     }
@@ -4296,9 +4455,10 @@ class parser
             // in strict mode, input must be completely read
             if (strict and (get_token() != token_type::end_of_input))
             {
-                sdp.parse_error(m_lexer.get_position(),
-                                m_lexer.get_token_string(),
-                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+                sdp.parse_error(
+                    m_lexer.get_token_string(),
+                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                );
             }
 
             // in case of an error, return discarded value
@@ -4324,9 +4484,10 @@ class parser
             // in strict mode, input must be completely read
             if (strict and (get_token() != token_type::end_of_input))
             {
-                sdp.parse_error(m_lexer.get_position(),
-                                m_lexer.get_token_string(),
-                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+                sdp.parse_error(
+                    m_lexer.get_token_string(),
+                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                );
             }
 
             // in case of an error, return discarded value
@@ -4357,9 +4518,10 @@ class parser
         // strict mode: next byte must be EOF
         if (result and strict and (get_token() != token_type::end_of_input))
         {
-            return sax->parse_error(m_lexer.get_position(),
-                                    m_lexer.get_token_string(),
-                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+            return sax->parse_error(
+                       m_lexer.get_token_string(),
+                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                   );
         }
 
         return result;
@@ -4383,7 +4545,7 @@ class parser
                 {
                     case token_type::begin_object:
                     {
-                        if (JSON_UNLIKELY(not sax->start_object()))
+                        if (JSON_UNLIKELY(not sax->start_object(-1, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4391,7 +4553,7 @@ class parser
                         // closing } -> we are done
                         if (get_token() == token_type::end_object)
                         {
-                            if (JSON_UNLIKELY(not sax->end_object()))
+                            if (JSON_UNLIKELY(not sax->end_object(m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -4401,13 +4563,14 @@ class parser
                         // parse key
                         if (JSON_UNLIKELY(last_token != token_type::value_string))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string))
+                                   );
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -4416,9 +4579,10 @@ class parser
                         // parse separator (:)
                         if (JSON_UNLIKELY(get_token() != token_type::name_separator))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator))
+                                   );
                         }
 
                         // remember we are now inside an object
@@ -4431,7 +4595,7 @@ class parser
 
                     case token_type::begin_array:
                     {
-                        if (JSON_UNLIKELY(not sax->start_array()))
+                        if (JSON_UNLIKELY(not sax->start_array(-1, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4439,7 +4603,7 @@ class parser
                         // closing ] -> we are done
                         if (get_token() == token_type::end_array)
                         {
-                            if (JSON_UNLIKELY(not sax->end_array()))
+                            if (JSON_UNLIKELY(not sax->end_array(m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -4459,13 +4623,14 @@ class parser
 
                         if (JSON_UNLIKELY(not std::isfinite(res)))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    out_of_range::create(406, "number overflow parsing '" + m_lexer.get_token_string() + "'"));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       out_of_range::create(406, "number overflow parsing '" + m_lexer.get_token_string() + "'")
+                                   );
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->number_float(res, m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->number_float(res, m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -4475,7 +4640,7 @@ class parser
 
                     case token_type::literal_false:
                     {
-                        if (JSON_UNLIKELY(not sax->boolean(false)))
+                        if (JSON_UNLIKELY(not sax->boolean(false, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4484,7 +4649,7 @@ class parser
 
                     case token_type::literal_null:
                     {
-                        if (JSON_UNLIKELY(not sax->null()))
+                        if (JSON_UNLIKELY(not sax->null(m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4493,7 +4658,7 @@ class parser
 
                     case token_type::literal_true:
                     {
-                        if (JSON_UNLIKELY(not sax->boolean(true)))
+                        if (JSON_UNLIKELY(not sax->boolean(true, m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4502,7 +4667,7 @@ class parser
 
                     case token_type::value_integer:
                     {
-                        if (JSON_UNLIKELY(not sax->number_integer(m_lexer.get_number_integer())))
+                        if (JSON_UNLIKELY(not sax->number_integer(m_lexer.get_number_integer(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4511,7 +4676,7 @@ class parser
 
                     case token_type::value_string:
                     {
-                        if (JSON_UNLIKELY(not sax->string(m_lexer.get_string())))
+                        if (JSON_UNLIKELY(not sax->string(m_lexer.get_string(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4520,7 +4685,7 @@ class parser
 
                     case token_type::value_unsigned:
                     {
-                        if (JSON_UNLIKELY(not sax->number_unsigned(m_lexer.get_number_unsigned())))
+                        if (JSON_UNLIKELY(not sax->number_unsigned(m_lexer.get_number_unsigned(), m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4530,16 +4695,18 @@ class parser
                     case token_type::parse_error:
                     {
                         // using "uninitialized" to avoid "expected" message
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized))
+                               );
                     }
 
                     default: // the last token was unexpected
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::literal_or_value)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::literal_or_value))
+                               );
                     }
                 }
             }
@@ -4569,7 +4736,7 @@ class parser
                     // closing ]
                     if (JSON_LIKELY(last_token == token_type::end_array))
                     {
-                        if (JSON_UNLIKELY(not sax->end_array()))
+                        if (JSON_UNLIKELY(not sax->end_array(m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4585,9 +4752,10 @@ class parser
                     }
                     else
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_array)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_array))
+                               );
                     }
                 }
                 else  // object
@@ -4598,13 +4766,14 @@ class parser
                         // parse key
                         if (JSON_UNLIKELY(get_token() != token_type::value_string))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string))
+                                   );
                         }
                         else
                         {
-                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string())))
+                            if (JSON_UNLIKELY(not sax->key(m_lexer.get_string(), m_lexer.get_position())))
                             {
                                 return false;
                             }
@@ -4613,9 +4782,10 @@ class parser
                         // parse separator (:)
                         if (JSON_UNLIKELY(get_token() != token_type::name_separator))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator))
+                                   );
                         }
 
                         // parse values
@@ -4626,7 +4796,7 @@ class parser
                     // closing }
                     if (JSON_LIKELY(last_token == token_type::end_object))
                     {
-                        if (JSON_UNLIKELY(not sax->end_object()))
+                        if (JSON_UNLIKELY(not sax->end_object(m_lexer.get_position())))
                         {
                             return false;
                         }
@@ -4642,9 +4812,10 @@ class parser
                     }
                     else
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_object)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_object))
+                               );
                     }
                 }
             }
@@ -5082,7 +5253,7 @@ class iter_impl
             }
 
             case value_t::null:
-                JSON_THROW(invalid_iterator::create(214, "cannot get value"));
+                JSON_THROW(invalid_iterator::create(214, "cannot get value", m_object->source_location()));
 
             default:
             {
@@ -5091,7 +5262,7 @@ class iter_impl
                     return *m_object;
                 }
 
-                JSON_THROW(invalid_iterator::create(214, "cannot get value"));
+                JSON_THROW(invalid_iterator::create(214, "cannot get value", m_object->source_location()));
             }
         }
     }
@@ -5125,7 +5296,7 @@ class iter_impl
                     return m_object;
                 }
 
-                JSON_THROW(invalid_iterator::create(214, "cannot get value"));
+                JSON_THROW(invalid_iterator::create(214, "cannot get value", m_object->source_location()));
             }
         }
     }
@@ -5225,7 +5396,7 @@ class iter_impl
         // if objects are not the same, the comparison is undefined
         if (JSON_UNLIKELY(m_object != other.m_object))
         {
-            JSON_THROW(invalid_iterator::create(212, "cannot compare iterators of different containers"));
+            JSON_THROW(invalid_iterator::create(212, "cannot compare iterators of different containers", m_object->source_location()));
         }
 
         assert(m_object != nullptr);
@@ -5269,7 +5440,7 @@ class iter_impl
         switch (m_object->m_type)
         {
             case value_t::object:
-                JSON_THROW(invalid_iterator::create(213, "cannot compare order of object iterators"));
+                JSON_THROW(invalid_iterator::create(213, "cannot compare order of object iterators", m_object->source_location()));
 
             case value_t::array:
                 return (m_it.array_iterator < other.m_it.array_iterator);
@@ -5317,7 +5488,7 @@ class iter_impl
         switch (m_object->m_type)
         {
             case value_t::object:
-                JSON_THROW(invalid_iterator::create(209, "cannot use offsets with object iterators"));
+                JSON_THROW(invalid_iterator::create(209, "cannot use offsets with object iterators", m_object->source_location()));
 
             case value_t::array:
             {
@@ -5388,7 +5559,7 @@ class iter_impl
         switch (m_object->m_type)
         {
             case value_t::object:
-                JSON_THROW(invalid_iterator::create(209, "cannot use offsets with object iterators"));
+                JSON_THROW(invalid_iterator::create(209, "cannot use offsets with object iterators", m_object->source_location()));
 
             case value_t::array:
                 return m_it.array_iterator - other.m_it.array_iterator;
@@ -5409,13 +5580,13 @@ class iter_impl
         switch (m_object->m_type)
         {
             case value_t::object:
-                JSON_THROW(invalid_iterator::create(208, "cannot use operator[] for object iterators"));
+                JSON_THROW(invalid_iterator::create(208, "cannot use operator[] for object iterators", m_object->source_location()));
 
             case value_t::array:
                 return *std::next(m_it.array_iterator, n);
 
             case value_t::null:
-                JSON_THROW(invalid_iterator::create(214, "cannot get value"));
+                JSON_THROW(invalid_iterator::create(214, "cannot get value", m_object->source_location()));
 
             default:
             {
@@ -5424,7 +5595,7 @@ class iter_impl
                     return *m_object;
                 }
 
-                JSON_THROW(invalid_iterator::create(214, "cannot get value"));
+                JSON_THROW(invalid_iterator::create(214, "cannot get value", m_object->source_location()));
             }
         }
     }
@@ -5442,7 +5613,7 @@ class iter_impl
             return m_it.object_iterator->first;
         }
 
-        JSON_THROW(invalid_iterator::create(207, "cannot use key() for non-object iterators"));
+        JSON_THROW(invalid_iterator::create(207, "cannot use key() for non-object iterators", m_object->source_location()));
     }
 
     /*!
@@ -5805,7 +5976,10 @@ class binary_reader
 
             if (JSON_UNLIKELY(current != std::char_traits<char>::eof()))
             {
-                return sax->parse_error(chars_read, get_token_string(), parse_error::create(110, chars_read, "expected end of input"));
+                return sax->parse_error(
+                           get_token_string(),
+                           parse_error::create(110, source_location_t{chars_read}, "expected end of input")
+                       );
             }
         }
 
@@ -6155,7 +6329,7 @@ class binary_reader
             default: // anything else (0xFF is handled inside the other types)
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading CBOR; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading CBOR; last byte: 0x" + last_token));
             }
         }
     }
@@ -6517,7 +6691,7 @@ class binary_reader
             default: // anything else
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading MessagePack; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading MessagePack; last byte: 0x" + last_token));
             }
         }
     }
@@ -6723,7 +6897,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a CBOR string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a CBOR string; last byte: 0x" + last_token));
             }
         }
     }
@@ -6889,7 +7063,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a MessagePack string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a MessagePack string; last byte: 0x" + last_token));
             }
         }
     }
@@ -7006,7 +7180,7 @@ class binary_reader
 
             default:
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a UBJSON string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a UBJSON string; last byte: 0x" + last_token));
         }
     }
 
@@ -7076,7 +7250,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "byte after '#' must denote a number type; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "byte after '#' must denote a number type; last byte: 0x" + last_token));
             }
         }
     }
@@ -7114,7 +7288,7 @@ class binary_reader
                     return false;
                 }
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "expected '#' after UBJSON type information; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "expected '#' after UBJSON type information; last byte: 0x" + last_token));
             }
 
             return get_ubjson_size_value(result.first);
@@ -7197,7 +7371,7 @@ class binary_reader
                 if (JSON_UNLIKELY(current > 127))
                 {
                     auto last_token = get_token_string();
-                    return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "byte after 'C' must be in range 0x00..0x7F; last byte: 0x" + last_token));
+                    return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "byte after 'C' must be in range 0x00..0x7F; last byte: 0x" + last_token));
                 }
                 string_t s(1, static_cast<char>(current));
                 return sax->string(s);
@@ -7218,7 +7392,7 @@ class binary_reader
             default: // anything else
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading UBJSON; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading UBJSON; last byte: 0x" + last_token));
             }
         }
     }
@@ -7337,7 +7511,7 @@ class binary_reader
         }
         else
         {
-            if (JSON_UNLIKELY(not sax->start_object()))
+            if (JSON_UNLIKELY(not sax->start_object(-1)))
             {
                 return false;
             }
@@ -7367,7 +7541,7 @@ class binary_reader
     {
         if (JSON_UNLIKELY(current == std::char_traits<char>::eof()))
         {
-            return sax->parse_error(chars_read, "<end of file>", parse_error::create(110, chars_read, "unexpected end of input"));
+            return sax->parse_error("<end of file>", parse_error::create(110, source_location_t{chars_read}, "unexpected end of input"));
         }
         return true;
     }
@@ -10340,7 +10514,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, detail::source_location_t{}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -10414,7 +10588,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, detail::source_location_t{},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -10434,7 +10608,7 @@ class json_pointer
                         }
                         JSON_CATCH(std::invalid_argument&)
                         {
-                            JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                            JSON_THROW(detail::parse_error::create(109, detail::source_location_t{}, "array index '" + reference_token + "' is not a number"));
                         }
                     }
                     break;
@@ -10481,7 +10655,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, detail::source_location_t{},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -10493,7 +10667,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, detail::source_location_t{}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -10546,7 +10720,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, detail::source_location_t{},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -10559,7 +10733,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, detail::source_location_t{}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -10605,7 +10779,7 @@ class json_pointer
                     // error condition (cf. RFC 6901, Sect. 4)
                     if (JSON_UNLIKELY(reference_token.size() > 1 and reference_token[0] == '0'))
                     {
-                        JSON_THROW(detail::parse_error::create(106, 0,
+                        JSON_THROW(detail::parse_error::create(106, detail::source_location_t{},
                                                                "array index '" + reference_token +
                                                                "' must not begin with '0'"));
                     }
@@ -10617,7 +10791,7 @@ class json_pointer
                     }
                     JSON_CATCH(std::invalid_argument&)
                     {
-                        JSON_THROW(detail::parse_error::create(109, 0, "array index '" + reference_token + "' is not a number"));
+                        JSON_THROW(detail::parse_error::create(109, detail::source_location_t{}, "array index '" + reference_token + "' is not a number"));
                     }
                     break;
                 }
@@ -10652,9 +10826,12 @@ class json_pointer
         // check if nonempty reference string begins with slash
         if (JSON_UNLIKELY(reference_string[0] != '/'))
         {
-            JSON_THROW(detail::parse_error::create(107, 1,
-                                                   "JSON pointer must be empty or begin with '/' - was: '" +
-                                                   reference_string + "'"));
+            JSON_THROW(detail::parse_error::create(
+                           107,
+                           detail::source_location_t{1, 0, 1},
+                           "JSON pointer must be empty or begin with '/' - was: '" +
+                           reference_string + "'"
+                       ));
         }
 
         // extract the reference tokens:
@@ -10689,7 +10866,11 @@ class json_pointer
                                   (reference_token[pos + 1] != '0' and
                                    reference_token[pos + 1] != '1')))
                 {
-                    JSON_THROW(detail::parse_error::create(108, 0, "escape character '~' must be followed with '0' or '1'"));
+                    JSON_THROW(detail::parse_error::create(
+                                   108,
+                                   detail::source_location_t{},
+                                   "escape character '~' must be followed with '0' or '1'"
+                               ));
                 }
             }
 
@@ -11014,6 +11195,8 @@ class basic_json
 
     /// workaround type for MSVC
     using basic_json_t = NLOHMANN_BASIC_JSON_TPL;
+
+    typedef SourceLocation source_location_t;
 
     // convenience aliases for types residing in namespace detail;
     using lexer = ::nlohmann::detail::lexer<basic_json>;
@@ -11987,8 +12170,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(const value_t v)
-        : m_type(v), m_value(v)
+    basic_json(const value_t v, source_location_t loc = source_location_t{})
+        : m_type(v), m_value(v), m_source_location{loc}
     {
         assert_invariant();
     }
@@ -12011,8 +12194,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(std::nullptr_t = nullptr) noexcept
-        : basic_json(value_t::null)
+    basic_json(std::nullptr_t = nullptr, source_location_t loc = source_location_t{}) noexcept
+        : basic_json(value_t::null, loc)
     {
         assert_invariant();
     }
@@ -12078,9 +12261,10 @@ class basic_json
               typename U = detail::uncvref_t<CompatibleType>,
               detail::enable_if_t<
                   detail::is_compatible_type<basic_json_t, U>::value, int> = 0>
-    basic_json(CompatibleType && val) noexcept(noexcept(
+    basic_json(CompatibleType && val, source_location_t loc = source_location_t{}) noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
+        : m_source_location{loc}
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         assert_invariant();
@@ -12156,6 +12340,7 @@ class basic_json
                 break;
         }
         assert_invariant();
+        m_source_location = val.m_source_location;
     }
 
     /*!
@@ -12582,6 +12767,7 @@ class basic_json
     */
     basic_json(const basic_json& other)
         : m_type(other.m_type)
+        , m_source_location{other.m_source_location}
     {
         // check of passed value is valid
         other.assert_invariant();
@@ -12665,7 +12851,8 @@ class basic_json
     */
     basic_json(basic_json&& other) noexcept
         : m_type(std::move(other.m_type)),
-          m_value(std::move(other.m_value))
+          m_value(std::move(other.m_value)),
+          m_source_location{std::move(other.m_source_location)}
     {
         // check that passed value is valid
         other.assert_invariant();
@@ -12713,6 +12900,7 @@ class basic_json
         using std::swap;
         swap(m_type, other.m_type);
         swap(m_value, other.m_value);
+        swap(m_source_location, other.m_source_location);
 
         assert_invariant();
         return *this;
@@ -12802,6 +12990,11 @@ class basic_json
         }
 
         return result;
+    }
+
+    source_location_t source_location() const
+    {
+        return m_source_location;
     }
 
     /*!
@@ -17055,6 +17248,7 @@ class basic_json
 
     /// the value of the current element
     json_value m_value = {};
+    source_location_t m_source_location;
 
     //////////////////////////////////////////
     // binary serialization/deserialization //
@@ -18088,7 +18282,7 @@ class basic_json
         // type check: top level value must be an array
         if (JSON_UNLIKELY(not json_patch.is_array()))
         {
-            JSON_THROW(parse_error::create(104, 0, "JSON patch must be an array of objects"));
+            JSON_THROW(parse_error::create(104, detail::source_location_t{}, "JSON patch must be an array of objects"));
         }
 
         // iterate and apply the operations
@@ -18108,13 +18302,13 @@ class basic_json
                 // check if desired value is present
                 if (JSON_UNLIKELY(it == val.m_value.object->end()))
                 {
-                    JSON_THROW(parse_error::create(105, 0, error_msg + " must have member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, error_msg + " must have member '" + member + "'"));
                 }
 
                 // check if result is of type string
                 if (JSON_UNLIKELY(string_type and not it->second.is_string()))
                 {
-                    JSON_THROW(parse_error::create(105, 0, error_msg + " must have string member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, error_msg + " must have string member '" + member + "'"));
                 }
 
                 // no error: return value
@@ -18124,7 +18318,7 @@ class basic_json
             // type check: every element of the array must be an object
             if (JSON_UNLIKELY(not val.is_object()))
             {
-                JSON_THROW(parse_error::create(104, 0, "JSON patch must be an array of objects"));
+                JSON_THROW(parse_error::create(104, detail::source_location_t{}, "JSON patch must be an array of objects"));
             }
 
             // collect mandatory members
@@ -18212,7 +18406,7 @@ class basic_json
                 {
                     // op must be "add", "remove", "replace", "move", "copy", or
                     // "test"
-                    JSON_THROW(parse_error::create(105, 0, "operation value '" + op + "' is invalid"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, "operation value '" + op + "' is invalid"));
                 }
             }
         }

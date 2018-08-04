@@ -47,18 +47,24 @@ class exception : public std::runtime_error
   public:
     /// the id of the exception
     const int id;
+    const source_location_t loc;
 
   protected:
-    exception(int id_, const char* what_arg, source_location_t loc = {})
-    : std::runtime_error(what_arg)
-    , id(id_) 
+    exception(int id_, const char* what_arg, source_location_t loc = source_location_t{})
+        : std::runtime_error(what_arg)
+        , id(id_)
     {}
-    static std::string name(const std::string& ename, int id_, source_location_t loc = {})
+    static std::string name(const std::string& ename, int id_, source_location_t loc = source_location_t{})
     {
-        return 
-          "[json.exception." + ename + "." + std::to_string(id_) + 
-          (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
-          "] ";
+        return
+            "[json.exception." + ename + "." + std::to_string(id_) +
+            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
+            "] ";
+    }
+  public:
+    source_location_t location() const
+    {
+        return loc;
     }
 };
 
@@ -117,9 +123,9 @@ class parse_error : public exception
     @return parse_error object
     */
     static parse_error create(
-      int id_,
-      source_location_t loc,
-      const std::string& what_arg
+        int id_,
+        source_location_t loc,
+        const std::string& what_arg
     )
     {
         std::string w = exception::name("parse_error", id_, loc) + "parse error" +
@@ -172,7 +178,7 @@ caught.,invalid_iterator}
 class invalid_iterator : public exception
 {
   public:
-    static invalid_iterator create(int id_, const std::string& what_arg, source_location_t loc = {})
+    static invalid_iterator create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
         std::string w = exception::name("invalid_iterator", id_, loc) + what_arg;
         return invalid_iterator(id_, w.c_str(), loc);
@@ -224,7 +230,7 @@ caught.,type_error}
 class type_error : public exception
 {
   public:
-    static type_error create(int id_, const std::string& what_arg, source_location_t loc = {})
+    static type_error create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
         std::string w = exception::name("type_error", id_, loc) + what_arg;
         return type_error(id_, w.c_str(), loc);
@@ -232,7 +238,7 @@ class type_error : public exception
 
   private:
     type_error(int id_, const char* what_arg, source_location_t loc)
-    : exception(id_, what_arg, loc)
+        : exception(id_, what_arg, loc)
     {}
 };
 
@@ -271,7 +277,7 @@ caught.,out_of_range}
 class out_of_range : public exception
 {
   public:
-    static out_of_range create(int id_, const std::string& what_arg, source_location_t loc = {})
+    static out_of_range create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
         std::string w = exception::name("out_of_range", id_, loc) + what_arg;
         return out_of_range(id_, w.c_str(), loc);
@@ -308,7 +314,7 @@ caught.,other_error}
 class other_error : public exception
 {
   public:
-    static other_error create(int id_, const std::string& what_arg, source_location_t loc = {})
+    static other_error create(int id_, const std::string& what_arg, source_location_t loc = source_location_t{})
     {
         std::string w = exception::name("other_error", id_, loc) + what_arg;
         return other_error(id_, w.c_str(), loc);

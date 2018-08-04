@@ -90,9 +90,10 @@ class parser
             // in strict mode, input must be completely read
             if (strict and (get_token() != token_type::end_of_input))
             {
-                sdp.parse_error(m_lexer.get_position(),
-                                m_lexer.get_token_string(),
-                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+                sdp.parse_error(
+                    m_lexer.get_token_string(),
+                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                );
             }
 
             // in case of an error, return discarded value
@@ -118,9 +119,10 @@ class parser
             // in strict mode, input must be completely read
             if (strict and (get_token() != token_type::end_of_input))
             {
-                sdp.parse_error(m_lexer.get_position(),
-                                m_lexer.get_token_string(),
-                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+                sdp.parse_error(
+                    m_lexer.get_token_string(),
+                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                );
             }
 
             // in case of an error, return discarded value
@@ -151,9 +153,10 @@ class parser
         // strict mode: next byte must be EOF
         if (result and strict and (get_token() != token_type::end_of_input))
         {
-            return sax->parse_error(m_lexer.get_position(),
-                                    m_lexer.get_token_string(),
-                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input)));
+            return sax->parse_error(
+                       m_lexer.get_token_string(),
+                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input))
+                   );
         }
 
         return result;
@@ -195,9 +198,10 @@ class parser
                         // parse key
                         if (JSON_UNLIKELY(last_token != token_type::value_string))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string))
+                                   );
                         }
                         else
                         {
@@ -210,9 +214,10 @@ class parser
                         // parse separator (:)
                         if (JSON_UNLIKELY(get_token() != token_type::name_separator))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator))
+                                   );
                         }
 
                         // remember we are now inside an object
@@ -253,9 +258,10 @@ class parser
 
                         if (JSON_UNLIKELY(not std::isfinite(res)))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    out_of_range::create(406, "number overflow parsing '" + m_lexer.get_token_string() + "'"));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       out_of_range::create(406, "number overflow parsing '" + m_lexer.get_token_string() + "'")
+                                   );
                         }
                         else
                         {
@@ -324,16 +330,18 @@ class parser
                     case token_type::parse_error:
                     {
                         // using "uninitialized" to avoid "expected" message
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized))
+                               );
                     }
 
                     default: // the last token was unexpected
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::literal_or_value)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::literal_or_value))
+                               );
                     }
                 }
             }
@@ -379,9 +387,10 @@ class parser
                     }
                     else
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_array)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_array))
+                               );
                     }
                 }
                 else  // object
@@ -392,9 +401,10 @@ class parser
                         // parse key
                         if (JSON_UNLIKELY(get_token() != token_type::value_string))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string))
+                                   );
                         }
                         else
                         {
@@ -407,9 +417,10 @@ class parser
                         // parse separator (:)
                         if (JSON_UNLIKELY(get_token() != token_type::name_separator))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
-                                                    m_lexer.get_token_string(),
-                                                    parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator)));
+                            return sax->parse_error(
+                                       m_lexer.get_token_string(),
+                                       parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator))
+                                   );
                         }
 
                         // parse values
@@ -436,9 +447,10 @@ class parser
                     }
                     else
                     {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_object)));
+                        return sax->parse_error(
+                                   m_lexer.get_token_string(),
+                                   parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_object))
+                               );
                     }
                 }
             }

@@ -180,7 +180,7 @@ class basic_json
     /// workaround type for MSVC
     using basic_json_t = NLOHMANN_BASIC_JSON_TPL;
 
-    typedef nlohmann::detail::source_location_t source_location_t;
+    typedef SourceLocation source_location_t;
 
     // convenience aliases for types residing in namespace detail;
     using lexer = ::nlohmann::detail::lexer<basic_json>;
@@ -1154,7 +1154,7 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(const value_t v, source_location_t loc = {})
+    basic_json(const value_t v, source_location_t loc = source_location_t{})
         : m_type(v), m_value(v), m_source_location{loc}
     {
         assert_invariant();
@@ -1178,7 +1178,7 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(std::nullptr_t = nullptr, source_location_t loc = {}) noexcept
+    basic_json(std::nullptr_t = nullptr, source_location_t loc = source_location_t{}) noexcept
         : basic_json(value_t::null, loc)
     {
         assert_invariant();
@@ -1245,10 +1245,10 @@ class basic_json
               typename U = detail::uncvref_t<CompatibleType>,
               detail::enable_if_t<
                   detail::is_compatible_type<basic_json_t, U>::value, int> = 0>
-    basic_json(CompatibleType && val, source_location_t loc = {}) noexcept(noexcept(
+    basic_json(CompatibleType && val, source_location_t loc = source_location_t{}) noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
-    : m_source_location{loc}
+        : m_source_location{loc}
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         assert_invariant();
@@ -6232,7 +6232,7 @@ class basic_json
 
     /// the value of the current element
     json_value m_value = {};
-    source_location_t m_source_location = {};
+    source_location_t m_source_location;
 
     //////////////////////////////////////////
     // binary serialization/deserialization //
@@ -7266,7 +7266,7 @@ class basic_json
         // type check: top level value must be an array
         if (JSON_UNLIKELY(not json_patch.is_array()))
         {
-            JSON_THROW(parse_error::create(104, {}, "JSON patch must be an array of objects"));
+            JSON_THROW(parse_error::create(104, detail::source_location_t{}, "JSON patch must be an array of objects"));
         }
 
         // iterate and apply the operations
@@ -7286,13 +7286,13 @@ class basic_json
                 // check if desired value is present
                 if (JSON_UNLIKELY(it == val.m_value.object->end()))
                 {
-                    JSON_THROW(parse_error::create(105, {}, error_msg + " must have member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, error_msg + " must have member '" + member + "'"));
                 }
 
                 // check if result is of type string
                 if (JSON_UNLIKELY(string_type and not it->second.is_string()))
                 {
-                    JSON_THROW(parse_error::create(105, {}, error_msg + " must have string member '" + member + "'"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, error_msg + " must have string member '" + member + "'"));
                 }
 
                 // no error: return value
@@ -7302,7 +7302,7 @@ class basic_json
             // type check: every element of the array must be an object
             if (JSON_UNLIKELY(not val.is_object()))
             {
-                JSON_THROW(parse_error::create(104, {}, "JSON patch must be an array of objects"));
+                JSON_THROW(parse_error::create(104, detail::source_location_t{}, "JSON patch must be an array of objects"));
             }
 
             // collect mandatory members
@@ -7390,7 +7390,7 @@ class basic_json
                 {
                     // op must be "add", "remove", "replace", "move", "copy", or
                     // "test"
-                    JSON_THROW(parse_error::create(105, {}, "operation value '" + op + "' is invalid"));
+                    JSON_THROW(parse_error::create(105, detail::source_location_t{}, "operation value '" + op + "' is invalid"));
                 }
             }
         }

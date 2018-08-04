@@ -1157,7 +1157,7 @@ scan_number_done:
     /// return position of last read token
     constexpr source_location_t get_position() const noexcept
     {
-        return {chars_read, line, chars_read - line_start};
+        return source_location_t{chars_read, line, chars_read - line_start};
     }
 
     /// return the last read token (for errors only).  Will never contain EOF

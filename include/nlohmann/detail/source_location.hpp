@@ -9,9 +9,18 @@ namespace detail
 {
 struct source_location_t
 {
-    std::size_t byte_pos = 0;
-    std::size_t line = 0;
-    std::size_t column = 0;
+    std::size_t byte_pos;
+    std::size_t line;
+    std::size_t column;
+    explicit constexpr source_location_t(
+        std::size_t byte_pos = 0,
+        std::size_t line = 0,
+        std::size_t column = 0
+    ) noexcept
+    : byte_pos{byte_pos}
+    , line{line}
+    , column{column}
+    {}
 };
 }
 }

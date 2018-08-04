@@ -24,6 +24,11 @@ for serialization.
 template<typename T = void, typename SFINAE = void>
 struct adl_serializer;
 
+namespace detail
+{
+struct source_location_t;
+}
+
 template<template<typename U, typename V, typename... Args> class ObjectType =
          std::map,
          template<typename U, typename... Args> class ArrayType = std::vector,
@@ -33,7 +38,8 @@ template<template<typename U, typename V, typename... Args> class ObjectType =
          class NumberFloatType = double,
          template<typename U> class AllocatorType = std::allocator,
          template<typename T, typename SFINAE = void> class JSONSerializer =
-         adl_serializer>
+         adl_serializer,
+         class SourceLocation = detail::source_location_t>
 class basic_json;
 
 /*!

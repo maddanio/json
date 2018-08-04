@@ -96,7 +96,10 @@ class binary_reader
 
             if (JSON_UNLIKELY(current != std::char_traits<char>::eof()))
             {
-                return sax->parse_error(chars_read, get_token_string(), parse_error::create(110, chars_read, "expected end of input"));
+                return sax->parse_error(
+                           get_token_string(),
+                           parse_error::create(110, source_location_t{chars_read}, "expected end of input")
+                       );
             }
         }
 
@@ -446,7 +449,7 @@ class binary_reader
             default: // anything else (0xFF is handled inside the other types)
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading CBOR; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading CBOR; last byte: 0x" + last_token));
             }
         }
     }
@@ -808,7 +811,7 @@ class binary_reader
             default: // anything else
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading MessagePack; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading MessagePack; last byte: 0x" + last_token));
             }
         }
     }
@@ -1014,7 +1017,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a CBOR string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a CBOR string; last byte: 0x" + last_token));
             }
         }
     }
@@ -1180,7 +1183,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a MessagePack string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a MessagePack string; last byte: 0x" + last_token));
             }
         }
     }
@@ -1297,7 +1300,7 @@ class binary_reader
 
             default:
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "expected a UBJSON string; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "expected a UBJSON string; last byte: 0x" + last_token));
         }
     }
 
@@ -1367,7 +1370,7 @@ class binary_reader
             default:
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "byte after '#' must denote a number type; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "byte after '#' must denote a number type; last byte: 0x" + last_token));
             }
         }
     }
@@ -1405,7 +1408,7 @@ class binary_reader
                     return false;
                 }
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "expected '#' after UBJSON type information; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "expected '#' after UBJSON type information; last byte: 0x" + last_token));
             }
 
             return get_ubjson_size_value(result.first);
@@ -1488,7 +1491,7 @@ class binary_reader
                 if (JSON_UNLIKELY(current > 127))
                 {
                     auto last_token = get_token_string();
-                    return sax->parse_error(chars_read, last_token, parse_error::create(113, chars_read, "byte after 'C' must be in range 0x00..0x7F; last byte: 0x" + last_token));
+                    return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "byte after 'C' must be in range 0x00..0x7F; last byte: 0x" + last_token));
                 }
                 string_t s(1, static_cast<char>(current));
                 return sax->string(s);
@@ -1509,7 +1512,7 @@ class binary_reader
             default: // anything else
             {
                 auto last_token = get_token_string();
-                return sax->parse_error(chars_read, last_token, parse_error::create(112, chars_read, "error reading UBJSON; last byte: 0x" + last_token));
+                return sax->parse_error(last_token, parse_error::create(112, source_location_t{chars_read}, "error reading UBJSON; last byte: 0x" + last_token));
             }
         }
     }
@@ -1628,7 +1631,7 @@ class binary_reader
         }
         else
         {
-            if (JSON_UNLIKELY(not sax->start_object()))
+            if (JSON_UNLIKELY(not sax->start_object(-1)))
             {
                 return false;
             }
@@ -1658,7 +1661,7 @@ class binary_reader
     {
         if (JSON_UNLIKELY(current == std::char_traits<char>::eof()))
         {
-            return sax->parse_error(chars_read, "<end of file>", parse_error::create(110, chars_read, "unexpected end of input"));
+            return sax->parse_error("<end of file>", parse_error::create(110, source_location_t{chars_read}, "unexpected end of input"));
         }
         return true;
     }
