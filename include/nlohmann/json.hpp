@@ -1154,8 +1154,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(const value_t v, source_location_t loc = source_location_t{})
-        : m_type(v), m_value(v), m_source_location{loc}
+    basic_json(const value_t v)
+        : m_type(v), m_value(v)
     {
         assert_invariant();
     }
@@ -1178,8 +1178,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(std::nullptr_t = nullptr, source_location_t loc = source_location_t{}) noexcept
-        : basic_json(value_t::null, loc)
+    basic_json(std::nullptr_t = nullptr) noexcept
+        : basic_json(value_t::null)
     {
         assert_invariant();
     }
@@ -1245,10 +1245,9 @@ class basic_json
               typename U = detail::uncvref_t<CompatibleType>,
               detail::enable_if_t<
                   detail::is_compatible_type<basic_json_t, U>::value, int> = 0>
-    basic_json(CompatibleType && val, source_location_t loc = source_location_t{}) noexcept(noexcept(
+    basic_json(CompatibleType && val) noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
-        : m_source_location{loc}
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         assert_invariant();
@@ -1324,7 +1323,7 @@ class basic_json
                 break;
         }
         assert_invariant();
-        m_source_location = val.m_source_location;
+        set_source_location(val.source_location());
     }
 
     /*!
@@ -1974,6 +1973,11 @@ class basic_json
         }
 
         return result;
+    }
+
+    void set_source_location(source_location_t loc)
+    {
+        m_source_location = loc;
     }
 
     source_location_t source_location() const

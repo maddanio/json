@@ -376,13 +376,15 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
             assert(ref_stack.back()->is_array() or ref_stack.back()->is_object());
             if (ref_stack.back()->is_array())
             {
-                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v), loc);
+                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v));
+                ref_stack.back()->m_value.array->back().set_source_location(loc);
                 return &(ref_stack.back()->m_value.array->back());
             }
             else
             {
                 assert(object_element);
-                *object_element = BasicJsonType(std::forward<Value>(v), loc);
+                *object_element = BasicJsonType(std::forward<Value>(v));
+                object_element->set_source_location(loc);
                 return object_element;
             }
         }
@@ -653,7 +655,8 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         }
 
         // create value
-        auto value = BasicJsonType(std::forward<Value>(v), loc);
+        auto value = BasicJsonType(std::forward<Value>(v));
+        value.set_source_location(loc);
 
         // check callback
         const bool keep = skip_callback or callback(

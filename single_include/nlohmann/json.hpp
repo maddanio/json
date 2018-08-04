@@ -616,12 +616,13 @@ class exception : public std::runtime_error
     exception(int id_, const char* what_arg, source_location_t loc = source_location_t{})
         : std::runtime_error(what_arg)
         , id(id_)
+        , loc{loc}
     {}
     static std::string name(const std::string& ename, int id_, source_location_t loc = source_location_t{})
     {
         return
             "[json.exception." + ename + "." + std::to_string(id_) +
-            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
+            //            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
             "] ";
     }
   public:
@@ -692,6 +693,7 @@ class parse_error : public exception
     )
     {
         std::string w = exception::name("parse_error", id_, loc) + "parse error" +
+                        (loc.byte_pos ? (" at " + std::to_string(loc.byte_pos)) : "") +
                         ": " + what_arg;
         return parse_error(id_, loc, w.c_str());
     }
@@ -3957,13 +3959,15 @@ class json_sax_dom_parser : public json_sax<BasicJsonType>
             assert(ref_stack.back()->is_array() or ref_stack.back()->is_object());
             if (ref_stack.back()->is_array())
             {
-                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v), loc);
+                ref_stack.back()->m_value.array->emplace_back(std::forward<Value>(v));
+                ref_stack.back()->m_value.array->back().set_source_location(loc);
                 return &(ref_stack.back()->m_value.array->back());
             }
             else
             {
                 assert(object_element);
-                *object_element = BasicJsonType(std::forward<Value>(v), loc);
+                *object_element = BasicJsonType(std::forward<Value>(v));
+                object_element->set_source_location(loc);
                 return object_element;
             }
         }
@@ -4234,7 +4238,8 @@ class json_sax_dom_callback_parser : public json_sax<BasicJsonType>
         }
 
         // create value
-        auto value = BasicJsonType(std::forward<Value>(v), loc);
+        auto value = BasicJsonType(std::forward<Value>(v));
+        value.set_source_location(loc);
 
         // check callback
         const bool keep = skip_callback or callback(
@@ -12170,8 +12175,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(const value_t v, source_location_t loc = source_location_t{})
-        : m_type(v), m_value(v), m_source_location{loc}
+    basic_json(const value_t v)
+        : m_type(v), m_value(v)
     {
         assert_invariant();
     }
@@ -12194,8 +12199,8 @@ class basic_json
 
     @since version 1.0.0
     */
-    basic_json(std::nullptr_t = nullptr, source_location_t loc = source_location_t{}) noexcept
-        : basic_json(value_t::null, loc)
+    basic_json(std::nullptr_t = nullptr) noexcept
+        : basic_json(value_t::null)
     {
         assert_invariant();
     }
@@ -12261,10 +12266,9 @@ class basic_json
               typename U = detail::uncvref_t<CompatibleType>,
               detail::enable_if_t<
                   detail::is_compatible_type<basic_json_t, U>::value, int> = 0>
-    basic_json(CompatibleType && val, source_location_t loc = source_location_t{}) noexcept(noexcept(
+    basic_json(CompatibleType && val) noexcept(noexcept(
                 JSONSerializer<U>::to_json(std::declval<basic_json_t&>(),
                                            std::forward<CompatibleType>(val))))
-        : m_source_location{loc}
     {
         JSONSerializer<U>::to_json(*this, std::forward<CompatibleType>(val));
         assert_invariant();
@@ -12340,7 +12344,7 @@ class basic_json
                 break;
         }
         assert_invariant();
-        m_source_location = val.m_source_location;
+        set_source_location(val.source_location());
     }
 
     /*!
@@ -12990,6 +12994,11 @@ class basic_json
         }
 
         return result;
+    }
+
+    void set_source_location(source_location_t loc)
+    {
+        m_source_location = loc;
     }
 
     source_location_t source_location() const

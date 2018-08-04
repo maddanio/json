@@ -53,12 +53,13 @@ class exception : public std::runtime_error
     exception(int id_, const char* what_arg, source_location_t loc = source_location_t{})
         : std::runtime_error(what_arg)
         , id(id_)
+        , loc{loc}
     {}
     static std::string name(const std::string& ename, int id_, source_location_t loc = source_location_t{})
     {
         return
             "[json.exception." + ename + "." + std::to_string(id_) +
-            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
+            //            (loc.byte_pos ? ("@" + std::to_string(loc)) : std::string()) +
             "] ";
     }
   public:
@@ -129,6 +130,7 @@ class parse_error : public exception
     )
     {
         std::string w = exception::name("parse_error", id_, loc) + "parse error" +
+                        (loc.byte_pos ? (" at " + std::to_string(loc.byte_pos)) : "") +
                         ": " + what_arg;
         return parse_error(id_, loc, w.c_str());
     }

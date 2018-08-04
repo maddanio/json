@@ -95,7 +95,7 @@ class SaxCountdown : public nlohmann::json::json_sax_t
         return events_left-- > 0;
     }
 
-    bool parse_error(std::size_t, const std::string&, const json::exception&) override
+    bool parse_error(const std::string&, const json::exception&) override
     {
         return false;
     }
