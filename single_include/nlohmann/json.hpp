@@ -3657,116 +3657,6 @@ struct json_sax
         return end_array();
     }
     /*!
-    @brief a null value was read
-    @return whether parsing should proceed
-    */
-    virtual bool null()
-    {
-        return true;
-    };
-
-    /*!
-    @brief a boolean value was read
-    @param[in] val  boolean value
-    @return whether parsing should proceed
-    */
-    virtual bool boolean(bool val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an integer number was read
-    @param[in] val  integer value
-    @return whether parsing should proceed
-    */
-    virtual bool number_integer(number_integer_t val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an unsigned integer number was read
-    @param[in] val  unsigned integer value
-    @return whether parsing should proceed
-    */
-    virtual bool number_unsigned(number_unsigned_t val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an floating-point number was read
-    @param[in] val  floating-point value
-    @param[in] s    raw token value
-    @return whether parsing should proceed
-    */
-    virtual bool number_float(number_float_t val, const string_t& s)
-    {
-        return true;
-    };
-
-    /*!
-    @brief a string was read
-    @param[in] val  string value
-    @return whether parsing should proceed
-    */
-    virtual bool string(string_t& val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the beginning of an object was read
-    @param[in] elements  number of object elements or no_limit if unknown
-    @return whether parsing should proceed
-    @note binary formats may report the number of elements
-    */
-    virtual bool start_object(std::size_t elements)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an object key was read
-    @param[in] val  object key
-    @return whether parsing should proceed
-    */
-    virtual bool key(string_t& val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the end of an object was read
-    @return whether parsing should proceed
-    */
-    virtual bool end_object()
-    {
-        return true;
-    };
-
-    /*!
-    @brief the beginning of an array was read
-    @param[in] elements  number of array elements or no_limit if unknown
-    @return whether parsing should proceed
-    @note binary formats may report the number of elements
-    */
-    virtual bool start_array(std::size_t elements)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the end of an array was read
-    @return whether parsing should proceed
-    */
-    virtual bool end_array()
-    {
-        return true;
-    };
-
-    /*!
     @brief a parse error occurred
     @param[in] position    the position in the input where the error occurs
     @param[in] last_token  the last read token
@@ -3780,8 +3670,117 @@ struct json_sax
     {
         return false;
     };
-
     virtual ~json_sax() = default;
+  private:
+    /*!
+    @brief a null value was read
+    @return whether parsing should proceed
+    */
+    bool null()
+    {
+        return true;
+    };
+
+    /*!
+    @brief a boolean value was read
+    @param[in] val  boolean value
+    @return whether parsing should proceed
+    */
+    bool boolean(bool val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an integer number was read
+    @param[in] val  integer value
+    @return whether parsing should proceed
+    */
+    bool number_integer(number_integer_t val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an unsigned integer number was read
+    @param[in] val  unsigned integer value
+    @return whether parsing should proceed
+    */
+    bool number_unsigned(number_unsigned_t val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an floating-point number was read
+    @param[in] val  floating-point value
+    @param[in] s    raw token value
+    @return whether parsing should proceed
+    */
+    bool number_float(number_float_t val, const string_t& s)
+    {
+        return true;
+    };
+
+    /*!
+    @brief a string was read
+    @param[in] val  string value
+    @return whether parsing should proceed
+    */
+    bool string(string_t& val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the beginning of an object was read
+    @param[in] elements  number of object elements or no_limit if unknown
+    @return whether parsing should proceed
+    @note binary formats may report the number of elements
+    */
+    bool start_object(std::size_t elements)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an object key was read
+    @param[in] val  object key
+    @return whether parsing should proceed
+    */
+    bool key(string_t& val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the end of an object was read
+    @return whether parsing should proceed
+    */
+    bool end_object()
+    {
+        return true;
+    };
+
+    /*!
+    @brief the beginning of an array was read
+    @param[in] elements  number of array elements or no_limit if unknown
+    @return whether parsing should proceed
+    @note binary formats may report the number of elements
+    */
+    bool start_array(std::size_t elements)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the end of an array was read
+    @return whether parsing should proceed
+    */
+    bool end_array()
+    {
+        return true;
+    };
 };
 
 
@@ -4315,57 +4314,57 @@ class json_sax_acceptor : public json_sax<BasicJsonType>
     using number_float_t = typename BasicJsonType::number_float_t;
     using string_t = typename BasicJsonType::string_t;
 
-    bool null() override
+    bool null(source_location_t) override
     {
         return true;
     }
 
-    bool boolean(bool) override
+    bool boolean(bool, source_location_t) override
     {
         return true;
     }
 
-    bool number_integer(number_integer_t) override
+    bool number_integer(number_integer_t, source_location_t) override
     {
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t) override
+    bool number_unsigned(number_unsigned_t, source_location_t) override
     {
         return true;
     }
 
-    bool number_float(number_float_t, const string_t&) override
+    bool number_float(number_float_t, const string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool string(string_t&) override
+    bool string(string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool start_object(std::size_t) override
+    bool start_object(std::size_t, source_location_t) override
     {
         return true;
     }
 
-    bool key(string_t&) override
+    bool key(string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t) override
     {
         return true;
     }
 
-    bool start_array(std::size_t) override
+    bool start_array(std::size_t, source_location_t) override
     {
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t) override
     {
         return true;
     }
@@ -6004,6 +6003,11 @@ class binary_reader
     }
 
   private:
+    source_location_t location() const
+    {
+        return source_location_t{chars_read};
+    }
+
     /*!
     @param[in] get_char  whether a new character should be retrieved from the
                          input (true, default) or whether the last read
@@ -6044,30 +6048,30 @@ class binary_reader
             case 0x15:
             case 0x16:
             case 0x17:
-                return sax->number_unsigned(static_cast<number_unsigned_t>(current));
+                return sax->number_unsigned(static_cast<number_unsigned_t>(current), location());
 
             case 0x18: // Unsigned integer (one-byte uint8_t follows)
             {
                 uint8_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0x19: // Unsigned integer (two-byte uint16_t follows)
             {
                 uint16_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0x1A: // Unsigned integer (four-byte uint32_t follows)
             {
                 uint32_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0x1B: // Unsigned integer (eight-byte uint64_t follows)
             {
                 uint64_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             // Negative integer -1-0x00..-1-0x17 (-1..-24)
@@ -6095,31 +6099,31 @@ class binary_reader
             case 0x35:
             case 0x36:
             case 0x37:
-                return sax->number_integer(static_cast<int8_t>(0x20 - 1 - current));
+                return sax->number_integer(static_cast<int8_t>(0x20 - 1 - current), location());
 
             case 0x38: // Negative integer (one-byte uint8_t follows)
             {
                 uint8_t number;
-                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number);
+                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number, location());
             }
 
             case 0x39: // Negative integer -1-n (two-byte uint16_t follows)
             {
                 uint16_t number;
-                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number);
+                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number, location());
             }
 
             case 0x3A: // Negative integer -1-n (four-byte uint32_t follows)
             {
                 uint32_t number;
-                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number);
+                return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1) - number, location());
             }
 
             case 0x3B: // Negative integer -1-n (eight-byte uint64_t follows)
             {
                 uint64_t number;
                 return get_number(number) and sax->number_integer(static_cast<number_integer_t>(-1)
-                        - static_cast<number_integer_t>(number));
+                        - static_cast<number_integer_t>(number), location());
             }
 
             // UTF-8 string (0x00..0x17 bytes follow)
@@ -6154,7 +6158,7 @@ class binary_reader
             case 0x7F: // UTF-8 string (indefinite length)
             {
                 string_t s;
-                return get_cbor_string(s) and sax->string(s);
+                return get_cbor_string(s) and sax->string(s, location());
             }
 
             // array (0x00..0x17 data items follow)
@@ -6266,13 +6270,13 @@ class binary_reader
                 return get_cbor_object(json_sax_t::no_limit);
 
             case 0xF4: // false
-                return sax->boolean(false);
+                return sax->boolean(false, location());
 
             case 0xF5: // true
-                return sax->boolean(true);
+                return sax->boolean(true, location());
 
             case 0xF6: // null
-                return sax->null();
+                return sax->null(location());
 
             case 0xF9: // Half-Precision Float (two-byte IEEE 754)
             {
@@ -6316,19 +6320,19 @@ class binary_reader
                 }();
                 return sax->number_float((half & 0x8000) != 0
                                          ? static_cast<number_float_t>(-val)
-                                         : static_cast<number_float_t>(val), "");
+                                         : static_cast<number_float_t>(val), "", location());
             }
 
             case 0xFA: // Single-Precision Float (four-byte IEEE 754)
             {
                 float number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             case 0xFB: // Double-Precision Float (eight-byte IEEE 754)
             {
                 double number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             default: // anything else (0xFF is handled inside the other types)
@@ -6479,7 +6483,7 @@ class binary_reader
             case 0x7D:
             case 0x7E:
             case 0x7F:
-                return sax->number_unsigned(static_cast<number_unsigned_t>(current));
+                return sax->number_unsigned(static_cast<number_unsigned_t>(current), location());
 
             // fixmap
             case 0x80:
@@ -6554,76 +6558,76 @@ class binary_reader
             case 0xBF:
             {
                 string_t s;
-                return get_msgpack_string(s) and sax->string(s);
+                return get_msgpack_string(s) and sax->string(s, location());
             }
 
             case 0xC0: // nil
-                return sax->null();
+                return sax->null(location());
 
             case 0xC2: // false
-                return sax->boolean(false);
+                return sax->boolean(false, location());
 
             case 0xC3: // true
-                return sax->boolean(true);
+                return sax->boolean(true, location());
 
             case 0xCA: // float 32
             {
                 float number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             case 0xCB: // float 64
             {
                 double number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             case 0xCC: // uint 8
             {
                 uint8_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0xCD: // uint 16
             {
                 uint16_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0xCE: // uint 32
             {
                 uint32_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0xCF: // uint 64
             {
                 uint64_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 0xD0: // int 8
             {
                 int8_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 0xD1: // int 16
             {
                 int16_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 0xD2: // int 32
             {
                 int32_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 0xD3: // int 64
             {
                 int64_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 0xD9: // str 8
@@ -6631,7 +6635,7 @@ class binary_reader
             case 0xDB: // str 32
             {
                 string_t s;
-                return get_msgpack_string(s) and sax->string(s);
+                return get_msgpack_string(s) and sax->string(s, location());
             }
 
             case 0xDC: // array 16
@@ -6691,7 +6695,7 @@ class binary_reader
             case 0xFD:
             case 0xFE:
             case 0xFF:
-                return sax->number_integer(static_cast<int8_t>(current));
+                return sax->number_integer(static_cast<int8_t>(current), location());
 
             default: // anything else
             {
@@ -6914,7 +6918,7 @@ class binary_reader
     */
     bool get_cbor_array(const std::size_t len)
     {
-        if (JSON_UNLIKELY(not sax->start_array(len)))
+        if (JSON_UNLIKELY(not sax->start_array(len, location())))
         {
             return false;
         }
@@ -6938,7 +6942,7 @@ class binary_reader
             }
         }
 
-        return sax->end_array();
+        return sax->end_array(location());
     }
 
     /*!
@@ -6948,7 +6952,7 @@ class binary_reader
     */
     bool get_cbor_object(const std::size_t len)
     {
-        if (not JSON_UNLIKELY(sax->start_object(len)))
+        if (not JSON_UNLIKELY(sax->start_object(len, location())))
         {
             return false;
         }
@@ -6959,7 +6963,7 @@ class binary_reader
             for (std::size_t i = 0; i < len; ++i)
             {
                 get();
-                if (JSON_UNLIKELY(not get_cbor_string(key) or not sax->key(key)))
+                if (JSON_UNLIKELY(not get_cbor_string(key) or not sax->key(key, location())))
                 {
                     return false;
                 }
@@ -6975,7 +6979,7 @@ class binary_reader
         {
             while (get() != 0xFF)
             {
-                if (JSON_UNLIKELY(not get_cbor_string(key) or not sax->key(key)))
+                if (JSON_UNLIKELY(not get_cbor_string(key) or not sax->key(key, location())))
                 {
                     return false;
                 }
@@ -6988,7 +6992,7 @@ class binary_reader
             }
         }
 
-        return sax->end_object();
+        return sax->end_object(location());
     }
 
     /*!
@@ -7079,7 +7083,7 @@ class binary_reader
     */
     bool get_msgpack_array(const std::size_t len)
     {
-        if (JSON_UNLIKELY(not sax->start_array(len)))
+        if (JSON_UNLIKELY(not sax->start_array(len, location())))
         {
             return false;
         }
@@ -7092,7 +7096,7 @@ class binary_reader
             }
         }
 
-        return sax->end_array();
+        return sax->end_array(location());
     }
 
     /*!
@@ -7101,7 +7105,7 @@ class binary_reader
     */
     bool get_msgpack_object(const std::size_t len)
     {
-        if (JSON_UNLIKELY(not sax->start_object(len)))
+        if (JSON_UNLIKELY(not sax->start_object(len, location())))
         {
             return false;
         }
@@ -7110,7 +7114,7 @@ class binary_reader
         for (std::size_t i = 0; i < len; ++i)
         {
             get();
-            if (JSON_UNLIKELY(not get_msgpack_string(key) or not sax->key(key)))
+            if (JSON_UNLIKELY(not get_msgpack_string(key) or not sax->key(key, location())))
             {
                 return false;
             }
@@ -7122,7 +7126,7 @@ class binary_reader
             key.clear();
         }
 
-        return sax->end_object();
+        return sax->end_object(location());
     }
 
     /*!
@@ -7317,53 +7321,53 @@ class binary_reader
                 return unexpect_eof();
 
             case 'T':  // true
-                return sax->boolean(true);
+                return sax->boolean(true, location());
             case 'F':  // false
-                return sax->boolean(false);
+                return sax->boolean(false, location());
 
             case 'Z':  // null
-                return sax->null();
+                return sax->null(location());
 
             case 'U':
             {
                 uint8_t number;
-                return get_number(number) and sax->number_unsigned(number);
+                return get_number(number) and sax->number_unsigned(number, location());
             }
 
             case 'i':
             {
                 int8_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 'I':
             {
                 int16_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 'l':
             {
                 int32_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 'L':
             {
                 int64_t number;
-                return get_number(number) and sax->number_integer(number);
+                return get_number(number) and sax->number_integer(number, location());
             }
 
             case 'd':
             {
                 float number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             case 'D':
             {
                 double number;
-                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "");
+                return get_number(number) and sax->number_float(static_cast<number_float_t>(number), "", location());
             }
 
             case 'C':  // char
@@ -7379,13 +7383,13 @@ class binary_reader
                     return sax->parse_error(last_token, parse_error::create(113, source_location_t{chars_read}, "byte after 'C' must be in range 0x00..0x7F; last byte: 0x" + last_token));
                 }
                 string_t s(1, static_cast<char>(current));
-                return sax->string(s);
+                return sax->string(s, location());
             }
 
             case 'S':  // string
             {
                 string_t s;
-                return get_ubjson_string(s) and sax->string(s);
+                return get_ubjson_string(s) and sax->string(s, location());
             }
 
             case '[':  // array
@@ -7415,7 +7419,7 @@ class binary_reader
 
         if (size_and_type.first != string_t::npos)
         {
-            if (JSON_UNLIKELY(not sax->start_array(size_and_type.first)))
+            if (JSON_UNLIKELY(not sax->start_array(size_and_type.first, location())))
             {
                 return false;
             }
@@ -7446,7 +7450,7 @@ class binary_reader
         }
         else
         {
-            if (JSON_UNLIKELY(not sax->start_array(-1)))
+            if (JSON_UNLIKELY(not sax->start_array(-1, location())))
             {
                 return false;
             }
@@ -7461,7 +7465,7 @@ class binary_reader
             }
         }
 
-        return sax->end_array();
+        return sax->end_array(location());
     }
 
     /*!
@@ -7478,7 +7482,7 @@ class binary_reader
         string_t key;
         if (size_and_type.first != string_t::npos)
         {
-            if (JSON_UNLIKELY(not sax->start_object(size_and_type.first)))
+            if (JSON_UNLIKELY(not sax->start_object(size_and_type.first, location())))
             {
                 return false;
             }
@@ -7487,7 +7491,7 @@ class binary_reader
             {
                 for (std::size_t i = 0; i < size_and_type.first; ++i)
                 {
-                    if (JSON_UNLIKELY(not get_ubjson_string(key) or not sax->key(key)))
+                    if (JSON_UNLIKELY(not get_ubjson_string(key) or not sax->key(key, location())))
                     {
                         return false;
                     }
@@ -7502,7 +7506,7 @@ class binary_reader
             {
                 for (std::size_t i = 0; i < size_and_type.first; ++i)
                 {
-                    if (JSON_UNLIKELY(not get_ubjson_string(key) or not sax->key(key)))
+                    if (JSON_UNLIKELY(not get_ubjson_string(key) or not sax->key(key, location())))
                     {
                         return false;
                     }
@@ -7516,14 +7520,14 @@ class binary_reader
         }
         else
         {
-            if (JSON_UNLIKELY(not sax->start_object(-1)))
+            if (JSON_UNLIKELY(not sax->start_object(-1, location())))
             {
                 return false;
             }
 
             while (current != '}')
             {
-                if (JSON_UNLIKELY(not get_ubjson_string(key, false) or not sax->key(key)))
+                if (JSON_UNLIKELY(not get_ubjson_string(key, false) or not sax->key(key, location())))
                 {
                     return false;
                 }
@@ -7536,7 +7540,7 @@ class binary_reader
             }
         }
 
-        return sax->end_object();
+        return sax->end_object(location());
     }
 
     /*!
@@ -11180,7 +11184,7 @@ Format](http://rfc7159.net/rfc7159)
 @nosubgrouping
 */
 NLOHMANN_BASIC_JSON_TPL_DECLARATION
-class basic_json
+class basic_json : private SourceLocation
 {
   private:
     template<detail::value_t> friend struct detail::external_constructor;
@@ -12770,8 +12774,8 @@ class basic_json
     @since version 1.0.0
     */
     basic_json(const basic_json& other)
-        : m_type(other.m_type)
-        , m_source_location{other.m_source_location}
+        : SourceLocation(other)
+        , m_type(other.m_type)
     {
         // check of passed value is valid
         other.assert_invariant();
@@ -12854,9 +12858,9 @@ class basic_json
     @since version 1.0.0
     */
     basic_json(basic_json&& other) noexcept
-        : m_type(std::move(other.m_type)),
-          m_value(std::move(other.m_value)),
-          m_source_location{std::move(other.m_source_location)}
+        : SourceLocation(other)
+        , m_type(std::move(other.m_type))
+        , m_value(std::move(other.m_value))
     {
         // check that passed value is valid
         other.assert_invariant();
@@ -12904,7 +12908,7 @@ class basic_json
         using std::swap;
         swap(m_type, other.m_type);
         swap(m_value, other.m_value);
-        swap(m_source_location, other.m_source_location);
+        set_source_location(other.source_location());
 
         assert_invariant();
         return *this;
@@ -12998,12 +13002,12 @@ class basic_json
 
     void set_source_location(source_location_t loc)
     {
-        m_source_location = loc;
+        static_cast<SourceLocation&>(*this) = loc;
     }
 
     source_location_t source_location() const
     {
-        return m_source_location;
+        return static_cast<const SourceLocation&>(*this);
     }
 
     /*!
@@ -17257,7 +17261,6 @@ class basic_json
 
     /// the value of the current element
     json_value m_value = {};
-    source_location_t m_source_location;
 
     //////////////////////////////////////////
     // binary serialization/deserialization //

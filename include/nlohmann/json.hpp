@@ -159,7 +159,7 @@ Format](http://rfc7159.net/rfc7159)
 @nosubgrouping
 */
 NLOHMANN_BASIC_JSON_TPL_DECLARATION
-class basic_json
+class basic_json : private SourceLocation
 {
   private:
     template<detail::value_t> friend struct detail::external_constructor;
@@ -1749,8 +1749,8 @@ class basic_json
     @since version 1.0.0
     */
     basic_json(const basic_json& other)
-        : m_type(other.m_type)
-        , m_source_location{other.m_source_location}
+        : SourceLocation(other)
+        , m_type(other.m_type)
     {
         // check of passed value is valid
         other.assert_invariant();
@@ -1833,9 +1833,9 @@ class basic_json
     @since version 1.0.0
     */
     basic_json(basic_json&& other) noexcept
-        : m_type(std::move(other.m_type)),
-          m_value(std::move(other.m_value)),
-          m_source_location{std::move(other.m_source_location)}
+        : SourceLocation(other)
+        , m_type(std::move(other.m_type))
+        , m_value(std::move(other.m_value))
     {
         // check that passed value is valid
         other.assert_invariant();
@@ -1883,7 +1883,7 @@ class basic_json
         using std::swap;
         swap(m_type, other.m_type);
         swap(m_value, other.m_value);
-        swap(m_source_location, other.m_source_location);
+        set_source_location(other.source_location());
 
         assert_invariant();
         return *this;
@@ -1977,12 +1977,12 @@ class basic_json
 
     void set_source_location(source_location_t loc)
     {
-        m_source_location = loc;
+        static_cast<SourceLocation&>(*this) = loc;
     }
 
     source_location_t source_location() const
     {
-        return m_source_location;
+        return static_cast<const SourceLocation&>(*this);
     }
 
     /*!
@@ -6236,7 +6236,6 @@ class basic_json
 
     /// the value of the current element
     json_value m_value = {};
-    source_location_t m_source_location;
 
     //////////////////////////////////////////
     // binary serialization/deserialization //

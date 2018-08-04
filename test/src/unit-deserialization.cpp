@@ -37,43 +37,43 @@ using nlohmann::json;
 
 struct SaxEventLogger : public nlohmann::json::json_sax_t
 {
-    bool null() override
+    bool null(source_location_t) override
     {
         events.push_back("null()");
         return true;
     }
 
-    bool boolean(bool val) override
+    bool boolean(bool val, source_location_t) override
     {
         events.push_back(val ? "boolean(true)" : "boolean(false)");
         return true;
     }
 
-    bool number_integer(json::number_integer_t val) override
+    bool number_integer(json::number_integer_t val, source_location_t) override
     {
         events.push_back("number_integer(" + std::to_string(val) + ")");
         return true;
     }
 
-    bool number_unsigned(json::number_unsigned_t val) override
+    bool number_unsigned(json::number_unsigned_t val, source_location_t) override
     {
         events.push_back("number_unsigned(" + std::to_string(val) + ")");
         return true;
     }
 
-    bool number_float(json::number_float_t, const std::string& s) override
+    bool number_float(json::number_float_t, const std::string& s, source_location_t) override
     {
         events.push_back("number_float(" + s + ")");
         return true;
     }
 
-    bool string(std::string& val) override
+    bool string(std::string& val, source_location_t) override
     {
         events.push_back("string(" + val + ")");
         return true;
     }
 
-    bool start_object(std::size_t elements) override
+    bool start_object(std::size_t elements, source_location_t) override
     {
         if (elements == std::size_t(-1))
         {
@@ -86,19 +86,19 @@ struct SaxEventLogger : public nlohmann::json::json_sax_t
         return true;
     }
 
-    bool key(std::string& val) override
+    bool key(std::string& val, source_location_t) override
     {
         events.push_back("key(" + val + ")");
         return true;
     }
 
-    bool end_object()override
+    bool end_object(source_location_t)override
     {
         events.push_back("end_object()");
         return true;
     }
 
-    bool start_array(std::size_t elements) override
+    bool start_array(std::size_t elements, source_location_t) override
     {
         if (elements == std::size_t(-1))
         {
@@ -111,7 +111,7 @@ struct SaxEventLogger : public nlohmann::json::json_sax_t
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t) override
     {
         events.push_back("end_array()");
         return true;
@@ -128,7 +128,7 @@ struct SaxEventLogger : public nlohmann::json::json_sax_t
 
 struct SaxEventLoggerExitAfterStartObject : public SaxEventLogger
 {
-    bool start_object(std::size_t elements) override
+    bool start_object(std::size_t elements, source_location_t) override
     {
         if (elements == no_limit)
         {
@@ -144,7 +144,7 @@ struct SaxEventLoggerExitAfterStartObject : public SaxEventLogger
 
 struct SaxEventLoggerExitAfterKey : public SaxEventLogger
 {
-    bool key(std::string& val) override
+    bool key(std::string& val, source_location_t) override
     {
         events.push_back("key(" + val + ")");
         return false;
@@ -153,7 +153,7 @@ struct SaxEventLoggerExitAfterKey : public SaxEventLogger
 
 struct SaxEventLoggerExitAfterStartArray : public SaxEventLogger
 {
-    bool start_array(std::size_t elements) override
+    bool start_array(std::size_t elements, source_location_t) override
     {
         if (elements == no_limit)
         {

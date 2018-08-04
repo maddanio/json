@@ -30,79 +30,10 @@ SOFTWARE.
 #include "catch.hpp"
 
 #include <nlohmann/json.hpp>
+#include "sax_countdown.hpp"
 using nlohmann::json;
 
 #include <fstream>
-
-class SaxCountdown : public nlohmann::json::json_sax_t
-{
-  public:
-    explicit SaxCountdown(const int count) : events_left(count)
-    {}
-
-    bool null() override
-    {
-        return events_left-- > 0;
-    }
-
-    bool boolean(bool) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool number_integer(json::number_integer_t) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool number_unsigned(json::number_unsigned_t) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool number_float(json::number_float_t, const std::string&) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool string(std::string&) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool start_object(std::size_t) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool key(std::string&) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool end_object() override
-    {
-        return events_left-- > 0;
-    }
-
-    bool start_array(std::size_t) override
-    {
-        return events_left-- > 0;
-    }
-
-    bool end_array() override
-    {
-        return events_left-- > 0;
-    }
-
-    bool parse_error(const std::string&, const json::exception&) override
-    {
-        return false;
-    }
-
-  private:
-    int events_left = 0;
-};
 
 TEST_CASE("CBOR")
 {

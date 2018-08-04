@@ -74,116 +74,6 @@ struct json_sax
         return end_array();
     }
     /*!
-    @brief a null value was read
-    @return whether parsing should proceed
-    */
-    virtual bool null()
-    {
-        return true;
-    };
-
-    /*!
-    @brief a boolean value was read
-    @param[in] val  boolean value
-    @return whether parsing should proceed
-    */
-    virtual bool boolean(bool val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an integer number was read
-    @param[in] val  integer value
-    @return whether parsing should proceed
-    */
-    virtual bool number_integer(number_integer_t val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an unsigned integer number was read
-    @param[in] val  unsigned integer value
-    @return whether parsing should proceed
-    */
-    virtual bool number_unsigned(number_unsigned_t val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an floating-point number was read
-    @param[in] val  floating-point value
-    @param[in] s    raw token value
-    @return whether parsing should proceed
-    */
-    virtual bool number_float(number_float_t val, const string_t& s)
-    {
-        return true;
-    };
-
-    /*!
-    @brief a string was read
-    @param[in] val  string value
-    @return whether parsing should proceed
-    */
-    virtual bool string(string_t& val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the beginning of an object was read
-    @param[in] elements  number of object elements or no_limit if unknown
-    @return whether parsing should proceed
-    @note binary formats may report the number of elements
-    */
-    virtual bool start_object(std::size_t elements)
-    {
-        return true;
-    };
-
-    /*!
-    @brief an object key was read
-    @param[in] val  object key
-    @return whether parsing should proceed
-    */
-    virtual bool key(string_t& val)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the end of an object was read
-    @return whether parsing should proceed
-    */
-    virtual bool end_object()
-    {
-        return true;
-    };
-
-    /*!
-    @brief the beginning of an array was read
-    @param[in] elements  number of array elements or no_limit if unknown
-    @return whether parsing should proceed
-    @note binary formats may report the number of elements
-    */
-    virtual bool start_array(std::size_t elements)
-    {
-        return true;
-    };
-
-    /*!
-    @brief the end of an array was read
-    @return whether parsing should proceed
-    */
-    virtual bool end_array()
-    {
-        return true;
-    };
-
-    /*!
     @brief a parse error occurred
     @param[in] position    the position in the input where the error occurs
     @param[in] last_token  the last read token
@@ -197,8 +87,117 @@ struct json_sax
     {
         return false;
     };
-
     virtual ~json_sax() = default;
+  private:
+    /*!
+    @brief a null value was read
+    @return whether parsing should proceed
+    */
+    bool null()
+    {
+        return true;
+    };
+
+    /*!
+    @brief a boolean value was read
+    @param[in] val  boolean value
+    @return whether parsing should proceed
+    */
+    bool boolean(bool val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an integer number was read
+    @param[in] val  integer value
+    @return whether parsing should proceed
+    */
+    bool number_integer(number_integer_t val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an unsigned integer number was read
+    @param[in] val  unsigned integer value
+    @return whether parsing should proceed
+    */
+    bool number_unsigned(number_unsigned_t val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an floating-point number was read
+    @param[in] val  floating-point value
+    @param[in] s    raw token value
+    @return whether parsing should proceed
+    */
+    bool number_float(number_float_t val, const string_t& s)
+    {
+        return true;
+    };
+
+    /*!
+    @brief a string was read
+    @param[in] val  string value
+    @return whether parsing should proceed
+    */
+    bool string(string_t& val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the beginning of an object was read
+    @param[in] elements  number of object elements or no_limit if unknown
+    @return whether parsing should proceed
+    @note binary formats may report the number of elements
+    */
+    bool start_object(std::size_t elements)
+    {
+        return true;
+    };
+
+    /*!
+    @brief an object key was read
+    @param[in] val  object key
+    @return whether parsing should proceed
+    */
+    bool key(string_t& val)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the end of an object was read
+    @return whether parsing should proceed
+    */
+    bool end_object()
+    {
+        return true;
+    };
+
+    /*!
+    @brief the beginning of an array was read
+    @param[in] elements  number of array elements or no_limit if unknown
+    @return whether parsing should proceed
+    @note binary formats may report the number of elements
+    */
+    bool start_array(std::size_t elements)
+    {
+        return true;
+    };
+
+    /*!
+    @brief the end of an array was read
+    @return whether parsing should proceed
+    */
+    bool end_array()
+    {
+        return true;
+    };
 };
 
 
@@ -732,57 +731,57 @@ class json_sax_acceptor : public json_sax<BasicJsonType>
     using number_float_t = typename BasicJsonType::number_float_t;
     using string_t = typename BasicJsonType::string_t;
 
-    bool null() override
+    bool null(source_location_t) override
     {
         return true;
     }
 
-    bool boolean(bool) override
+    bool boolean(bool, source_location_t) override
     {
         return true;
     }
 
-    bool number_integer(number_integer_t) override
+    bool number_integer(number_integer_t, source_location_t) override
     {
         return true;
     }
 
-    bool number_unsigned(number_unsigned_t) override
+    bool number_unsigned(number_unsigned_t, source_location_t) override
     {
         return true;
     }
 
-    bool number_float(number_float_t, const string_t&) override
+    bool number_float(number_float_t, const string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool string(string_t&) override
+    bool string(string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool start_object(std::size_t) override
+    bool start_object(std::size_t, source_location_t) override
     {
         return true;
     }
 
-    bool key(string_t&) override
+    bool key(string_t&, source_location_t) override
     {
         return true;
     }
 
-    bool end_object() override
+    bool end_object(source_location_t) override
     {
         return true;
     }
 
-    bool start_array(std::size_t) override
+    bool start_array(std::size_t, source_location_t) override
     {
         return true;
     }
 
-    bool end_array() override
+    bool end_array(source_location_t) override
     {
         return true;
     }
