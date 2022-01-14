@@ -43,13 +43,13 @@ class my_input_adapter_t
 {
 public:
     using char_type = char;
-    using char_type_t = std::char_traits<char>::int_type;
+    template<typename T=void> using coroutine_type = cppcoro::task<T>;
 
     my_input_adapter_t(const char* s)
     : _s{s}
     {}
 
-    cppcoro::task<char_type_t> get_character() noexcept
+    cppcoro::task<std::char_traits<char>::int_type> get_character() noexcept
     {
         if (_done)
         {

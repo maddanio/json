@@ -14,8 +14,6 @@
 #include <nlohmann/detail/input/position_t.hpp>
 #include <nlohmann/detail/macro_scope.hpp>
 
-#include <cppcoro/task.hpp>
-
 namespace nlohmann
 {
 namespace detail
@@ -160,7 +158,7 @@ class lexer : public lexer_base<BasicJsonType>
     @return codepoint (0x0000..0xFFFF) or -1 in case of an error (e.g. EOF or
             non-hex character)
     */
-    cppcoro::task<int> get_codepoint()
+    typename InputAdapterType::template coroutine_type<int> get_codepoint()
     {
         // this function only makes sense after reading `\u`
         JSON_ASSERT(current == 'u');
@@ -208,7 +206,7 @@ class lexer : public lexer_base<BasicJsonType>
 
     @return true if and only if no range violation was detected
     */
-    cppcoro::task<bool> next_byte_in_range(std::initializer_list<char_int_type> ranges)
+    typename InputAdapterType::template coroutine_type<bool> next_byte_in_range(std::initializer_list<char_int_type> ranges)
     {
         JSON_ASSERT(ranges.size() == 2 || ranges.size() == 4 || ranges.size() == 6);
         add(current);
@@ -245,7 +243,7 @@ class lexer : public lexer_base<BasicJsonType>
     @note In case of errors, variable error_message contains a textual
           description.
     */
-    cppcoro::task<token_type> scan_string()
+    typename InputAdapterType::template coroutine_type<token_type> scan_string()
     {
         // reset token_buffer (ignore opening quote)
         reset();
@@ -835,7 +833,7 @@ class lexer : public lexer_base<BasicJsonType>
      * @brief scan a comment
      * @return whether comment could be scanned successfully
      */
-    cppcoro::task<bool> scan_comment()
+    typename InputAdapterType::template coroutine_type<bool> scan_comment()
     {
         switch (co_await get())
         {
@@ -960,7 +958,7 @@ class lexer : public lexer_base<BasicJsonType>
           locale's decimal point is used instead of `.` to work with the
           locale-dependent converters.
     */
-    cppcoro::task<token_type> scan_number()  // lgtm [cpp/use-of-goto]
+    typename InputAdapterType::template coroutine_type<token_type> scan_number()  // lgtm [cpp/use-of-goto]
     {
         // reset token_buffer to store the number's bytes
         reset();
@@ -1291,7 +1289,7 @@ scan_number_done:
     @param[in] return_type   the token type to return on success
     */
     JSON_HEDLEY_NON_NULL(2)
-    cppcoro::task<token_type> scan_literal(const char_type* literal_text, const std::size_t length,
+    typename InputAdapterType::template coroutine_type<token_type> scan_literal(const char_type* literal_text, const std::size_t length,
                             token_type return_type)
     {
         JSON_ASSERT(std::char_traits<char_type>::to_char_type(current) == literal_text[0]);
@@ -1328,7 +1326,7 @@ scan_number_done:
 
     @return character read from the input
     */
-    cppcoro::task<char_int_type> get()
+    typename InputAdapterType::template coroutine_type<char_int_type> get()
     {
         ++position.chars_read_total;
         ++position.chars_read_current_line;
@@ -1477,7 +1475,7 @@ scan_number_done:
     @brief skip the UTF-8 byte order mark
     @return true iff there is no BOM or the correct BOM has been skipped
     */
-    cppcoro::task<bool> skip_bom()
+    typename InputAdapterType::template coroutine_type<bool> skip_bom()
     {
         if (co_await get() == 0xEF)
         {
@@ -1491,7 +1489,7 @@ scan_number_done:
         co_return true;
     }
 
-    cppcoro::task<> skip_whitespace()
+    typename InputAdapterType::template coroutine_type<> skip_whitespace()
     {
         do
         {
@@ -1500,7 +1498,7 @@ scan_number_done:
         while (current == ' ' || current == '\t' || current == '\n' || current == '\r');
     }
 
-    cppcoro::task<token_type> scan()
+    typename InputAdapterType::template coroutine_type<token_type> scan()
     {
         // initially, skip the BOM
         if (position.chars_read_total == 0 && !co_await skip_bom())
