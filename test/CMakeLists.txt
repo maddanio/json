@@ -67,8 +67,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC" AND CMAKE_CXX_COMPILER_VERSION VER
     unset(compiler_supports_cpp_17)
 endif()
 
-file(GLOB files src/unit-*.cpp)
-
+#file(GLOB files src/unit-coro-*.cpp)
+set(files "src/unit-class_lexer.cpp")
 foreach(file ${files})
     get_filename_component(file_basename ${file} NAME_WE)
     string(REGEX REPLACE "unit-([^$]+)" "test-\\1" testcase ${file_basename})
@@ -142,21 +142,21 @@ foreach(file ${files})
 endforeach()
 
 # disable exceptions for test-disabled_exceptions
-target_compile_definitions(test-disabled_exceptions PUBLIC JSON_NOEXCEPTION)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(test-disabled_exceptions PUBLIC -fno-exceptions)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # disabled due to https://github.com/nlohmann/json/discussions/2824
-    #target_compile_options(test-disabled_exceptions PUBLIC /EH)
-    #target_compile_definitions(test-disabled_exceptions PUBLIC _HAS_EXCEPTIONS=0)
-endif()
+#target_compile_definitions(test-disabled_exceptions PUBLIC JSON_NOEXCEPTION)
+#if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+#    target_compile_options(test-disabled_exceptions PUBLIC -fno-exceptions)
+#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#    # disabled due to https://github.com/nlohmann/json/discussions/2824
+#    #target_compile_options(test-disabled_exceptions PUBLIC /EH)
+#    #target_compile_definitions(test-disabled_exceptions PUBLIC _HAS_EXCEPTIONS=0)
+#endif()
 
 # avoid stack overflow, see https://github.com/nlohmann/json/issues/2955
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set_property(TARGET test-cbor APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
-    set_property(TARGET test-msgpack APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
-    set_property(TARGET test-ubjson APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
-endif()
+#if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#    set_property(TARGET test-cbor APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
+#    set_property(TARGET test-msgpack APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
+#    set_property(TARGET test-ubjson APPEND_STRING PROPERTY LINK_FLAGS " /STACK:4000000")
+#endif()
 
 #############################################################################
 # Test the generated build configs

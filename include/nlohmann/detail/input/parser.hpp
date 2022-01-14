@@ -14,6 +14,7 @@
 #include <nlohmann/detail/macro_scope.hpp>
 #include <nlohmann/detail/meta/is_sax.hpp>
 #include <nlohmann/detail/value_t.hpp>
+#include <cppcoro/task.hpp>
 
 namespace nlohmann
 {
@@ -68,8 +69,6 @@ class parser
         , m_lexer(std::move(adapter), skip_comments)
         , allow_exceptions(allow_exceptions_)
     {
-        // read first token
-        get_token();
     }
 
     /*!
@@ -82,15 +81,17 @@ class parser
     @throw parse_error.102 if to_unicode fails or surrogate error
     @throw parse_error.103 if to_unicode fails
     */
-    void parse(const bool strict, BasicJsonType& result)
+    cppcoro::task<> parse(const bool strict, BasicJsonType& result)
     {
+        // read first token
+        co_await get_token();
         if (callback)
         {
             json_sax_dom_callback_parser<BasicJsonType> sdp(result, callback, allow_exceptions);
-            sax_parse_internal(&sdp);
+            co_await sax_parse_internal(&sdp);
 
             // in strict mode, input must be completely read
-            if (strict && (get_token() != token_type::end_of_input))
+            if (strict && (co_await get_token() != token_type::end_of_input))
             {
                 sdp.parse_error(m_lexer.get_position(),
                                 m_lexer.get_token_string(),
@@ -102,7 +103,7 @@ class parser
             if (sdp.is_errored())
             {
                 result = value_t::discarded;
-                return;
+                co_return;
             }
 
             // set top-level value to null if it was discarded by the callback
@@ -115,10 +116,10 @@ class parser
         else
         {
             json_sax_dom_parser<BasicJsonType> sdp(result, allow_exceptions);
-            sax_parse_internal(&sdp);
+            auto r = sax_parse_internal(&sdp);
 
             // in strict mode, input must be completely read
-            if (strict && (get_token() != token_type::end_of_input))
+            if (strict && (co_await get_token() != token_type::end_of_input))
             {
                 sdp.parse_error(m_lexer.get_position(),
                                 m_lexer.get_token_string(),
@@ -129,7 +130,7 @@ class parser
             if (sdp.is_errored())
             {
                 result = value_t::discarded;
-                return;
+                co_return;
             }
         }
 
@@ -169,7 +170,7 @@ class parser
   private:
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
-    bool sax_parse_internal(SAX* sax)
+    cppcoro::task<bool> sax_parse_internal(SAX* sax)
     {
         // stack to remember the hierarchy of structured values we are parsing
         // true = array; false = object
@@ -188,15 +189,15 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->start_object(static_cast<std::size_t>(-1))))
                         {
-                            return false;
+                            co_return false;
                         }
 
                         // closing } -> we are done
-                        if (get_token() == token_type::end_object)
+                        if (co_await get_token() == token_type::end_object)
                         {
                             if (JSON_HEDLEY_UNLIKELY(!sax->end_object()))
                             {
-                                return false;
+                                co_return false;
                             }
                             break;
                         }
@@ -204,19 +205,19 @@ class parser
                         // parse key
                         if (JSON_HEDLEY_UNLIKELY(last_token != token_type::value_string))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
+                            co_return sax->parse_error(m_lexer.get_position(),
                                                     m_lexer.get_token_string(),
                                                     parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string, "object key"), BasicJsonType()));
                         }
                         if (JSON_HEDLEY_UNLIKELY(!sax->key(m_lexer.get_string())))
                         {
-                            return false;
+                            co_return false;
                         }
 
                         // parse separator (:)
-                        if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::name_separator))
+                        if (JSON_HEDLEY_UNLIKELY(co_await get_token() != token_type::name_separator))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
+                            co_return sax->parse_error(m_lexer.get_position(),
                                                     m_lexer.get_token_string(),
                                                     parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator, "object separator"), BasicJsonType()));
                         }
@@ -225,7 +226,7 @@ class parser
                         states.push_back(false);
 
                         // parse values
-                        get_token();
+                        co_await get_token();
                         continue;
                     }
 
@@ -233,15 +234,15 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->start_array(static_cast<std::size_t>(-1))))
                         {
-                            return false;
+                            co_return false;
                         }
 
                         // closing ] -> we are done
-                        if (get_token() == token_type::end_array)
+                        if (co_await get_token() == token_type::end_array)
                         {
                             if (JSON_HEDLEY_UNLIKELY(!sax->end_array()))
                             {
-                                return false;
+                                co_return false;
                             }
                             break;
                         }
@@ -259,14 +260,14 @@ class parser
 
                         if (JSON_HEDLEY_UNLIKELY(!std::isfinite(res)))
                         {
-                            return sax->parse_error(m_lexer.get_position(),
+                            co_return sax->parse_error(m_lexer.get_position(),
                                                     m_lexer.get_token_string(),
                                                     out_of_range::create(406, "number overflow parsing '" + m_lexer.get_token_string() + "'", BasicJsonType()));
                         }
 
                         if (JSON_HEDLEY_UNLIKELY(!sax->number_float(res, m_lexer.get_string())))
                         {
-                            return false;
+                            co_return false;
                         }
 
                         break;
@@ -276,7 +277,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->boolean(false)))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -285,7 +286,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->null()))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -294,7 +295,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->boolean(true)))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -303,7 +304,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->number_integer(m_lexer.get_number_integer())))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -312,7 +313,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->string(m_lexer.get_string())))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -321,7 +322,7 @@ class parser
                     {
                         if (JSON_HEDLEY_UNLIKELY(!sax->number_unsigned(m_lexer.get_number_unsigned())))
                         {
-                            return false;
+                            co_return false;
                         }
                         break;
                     }
@@ -329,7 +330,7 @@ class parser
                     case token_type::parse_error:
                     {
                         // using "uninitialized" to avoid "expected" message
-                        return sax->parse_error(m_lexer.get_position(),
+                        co_return sax->parse_error(m_lexer.get_position(),
                                                 m_lexer.get_token_string(),
                                                 parse_error::create(101, m_lexer.get_position(), exception_message(token_type::uninitialized, "value"), BasicJsonType()));
                     }
@@ -343,7 +344,7 @@ class parser
                     case token_type::literal_or_value:
                     default: // the last token was unexpected
                     {
-                        return sax->parse_error(m_lexer.get_position(),
+                        co_return sax->parse_error(m_lexer.get_position(),
                                                 m_lexer.get_token_string(),
                                                 parse_error::create(101, m_lexer.get_position(), exception_message(token_type::literal_or_value, "value"), BasicJsonType()));
                     }
@@ -358,16 +359,16 @@ class parser
             if (states.empty())
             {
                 // empty stack: we reached the end of the hierarchy: done
-                return true;
+                co_return true;
             }
 
             if (states.back())  // array
             {
                 // comma -> next value
-                if (get_token() == token_type::value_separator)
+                if (co_await get_token() == token_type::value_separator)
                 {
                     // parse a new value
-                    get_token();
+                    co_await get_token();
                     continue;
                 }
 
@@ -376,7 +377,7 @@ class parser
                 {
                     if (JSON_HEDLEY_UNLIKELY(!sax->end_array()))
                     {
-                        return false;
+                        co_return false;
                     }
 
                     // We are done with this array. Before we can parse a
@@ -389,7 +390,7 @@ class parser
                     continue;
                 }
 
-                return sax->parse_error(m_lexer.get_position(),
+                co_return sax->parse_error(m_lexer.get_position(),
                                         m_lexer.get_token_string(),
                                         parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_array, "array"), BasicJsonType()));
             }
@@ -397,31 +398,31 @@ class parser
             // states.back() is false -> object
 
             // comma -> next value
-            if (get_token() == token_type::value_separator)
+            if (co_await get_token() == token_type::value_separator)
             {
                 // parse key
-                if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::value_string))
+                if (JSON_HEDLEY_UNLIKELY(co_await get_token() != token_type::value_string))
                 {
-                    return sax->parse_error(m_lexer.get_position(),
+                    co_return sax->parse_error(m_lexer.get_position(),
                                             m_lexer.get_token_string(),
                                             parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string, "object key"), BasicJsonType()));
                 }
 
                 if (JSON_HEDLEY_UNLIKELY(!sax->key(m_lexer.get_string())))
                 {
-                    return false;
+                    co_return false;
                 }
 
                 // parse separator (:)
-                if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::name_separator))
+                if (JSON_HEDLEY_UNLIKELY(co_await get_token() != token_type::name_separator))
                 {
-                    return sax->parse_error(m_lexer.get_position(),
+                    co_return sax->parse_error(m_lexer.get_position(),
                                             m_lexer.get_token_string(),
                                             parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator, "object separator"), BasicJsonType()));
                 }
 
                 // parse values
-                get_token();
+                co_await get_token();
                 continue;
             }
 
@@ -430,7 +431,7 @@ class parser
             {
                 if (JSON_HEDLEY_UNLIKELY(!sax->end_object()))
                 {
-                    return false;
+                    co_return false;
                 }
 
                 // We are done with this object. Before we can parse a
@@ -443,16 +444,16 @@ class parser
                 continue;
             }
 
-            return sax->parse_error(m_lexer.get_position(),
+            co_return sax->parse_error(m_lexer.get_position(),
                                     m_lexer.get_token_string(),
                                     parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_object, "object"), BasicJsonType()));
         }
     }
 
     /// get next token from lexer
-    token_type get_token()
+    cppcoro::task<token_type> get_token()
     {
-        return last_token = m_lexer.scan();
+        co_return last_token = co_await m_lexer.scan();
     }
 
     std::string exception_message(const token_type expected, const std::string& context)

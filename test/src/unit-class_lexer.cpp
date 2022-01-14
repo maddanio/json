@@ -31,25 +31,64 @@ SOFTWARE.
 
 #define JSON_TESTS_PRIVATE
 #include <nlohmann/json.hpp>
+#include <cppcoro/task.hpp>
+#include <cppcoro/sync_wait.hpp>
 using nlohmann::json;
 
 namespace
 {
+
+
+class my_input_adapter_t
+{
+public:
+    using char_type = char;
+    using char_type_t = std::char_traits<char>::int_type;
+
+    my_input_adapter_t(const char* s)
+    : _s{s}
+    {}
+
+    cppcoro::task<char_type_t> get_character() noexcept
+    {
+        if (_done)
+        {
+            co_return std::char_traits<char_type>::eof();
+        }
+        auto c = *_s++;
+        if (c == 0)
+        {
+            _done = true;
+            co_return std::char_traits<char_type>::eof();
+        }
+        else
+        {
+            co_return c;
+        }
+    }
+
+private:
+    bool _done = false;
+    const char* _s;
+};
+
 // shortcut to scan a string literal
 json::lexer::token_type scan_string(const char* s, bool ignore_comments = false);
 json::lexer::token_type scan_string(const char* s, const bool ignore_comments)
 {
-    auto ia = nlohmann::detail::input_adapter(s);
-    return nlohmann::detail::lexer<json, decltype(ia)>(std::move(ia), ignore_comments).scan(); // NOLINT(hicpp-move-const-arg,performance-move-const-arg)
+    auto ia = my_input_adapter_t(s);
+    return cppcoro::sync_wait(
+        nlohmann::detail::lexer<json, decltype(ia)>(std::move(ia), ignore_comments).scan() // NOLINT(hicpp-move-const-arg,performance-move-const-arg)
+    );
 }
 } // namespace
 
 std::string get_error_message(const char* s, bool ignore_comments = false);
 std::string get_error_message(const char* s, const bool ignore_comments)
 {
-    auto ia = nlohmann::detail::input_adapter(s);
+    auto ia = my_input_adapter_t(s);
     auto lexer = nlohmann::detail::lexer<json, decltype(ia)>(std::move(ia), ignore_comments); // NOLINT(hicpp-move-const-arg,performance-move-const-arg)
-    lexer.scan();
+    cppcoro::sync_wait(lexer.scan());
     return lexer.get_error_message();
 }
 
@@ -218,7 +257,6 @@ TEST_CASE("lexer class")
         CHECK((scan_string("/*/* */", false) == json::lexer::token_type::parse_error));
         CHECK(get_error_message("/*/* */", false) == "invalid literal");
     }
-
     SECTION("ignore comments")
     {
         CHECK((scan_string("/", true) == json::lexer::token_type::parse_error));
@@ -230,7 +268,6 @@ TEST_CASE("lexer class")
         CHECK(get_error_message("/*", true) == "invalid comment; missing closing '*/'");
         CHECK((scan_string("/**", true) == json::lexer::token_type::parse_error));
         CHECK(get_error_message("/**", true) == "invalid comment; missing closing '*/'");
-
         CHECK((scan_string("//", true) == json::lexer::token_type::end_of_input));
         CHECK((scan_string("/**/", true) == json::lexer::token_type::end_of_input));
         CHECK((scan_string("/** /", true) == json::lexer::token_type::parse_error));

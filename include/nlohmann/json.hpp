@@ -3663,15 +3663,15 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     /// @sa https://json.nlohmann.me/api/basic_json/parse/
     template<typename IteratorType>
     JSON_HEDLEY_WARN_UNUSED_RESULT
-    static basic_json parse(IteratorType first,
+    static cppcoro::task<basic_json> parse(IteratorType first,
                             IteratorType last,
                             const parser_callback_t cb = nullptr,
                             const bool allow_exceptions = true,
                             const bool ignore_comments = false)
     {
         basic_json result;
-        parser(detail::input_adapter(std::move(first), std::move(last)), cb, allow_exceptions, ignore_comments).parse(true, result);
-        return result;
+        co_await parser(detail::input_adapter(std::move(first), std::move(last)), cb, allow_exceptions, ignore_comments).parse(true, result);
+        co_return result;
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
@@ -4730,12 +4730,13 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
 
 } // namespace std
 
+#if 0
 /// @brief user-defined string literal for JSON values
 /// @sa https://json.nlohmann.me/api/basic_json/operator_literal_json/
 JSON_HEDLEY_NON_NULL(1)
-inline nlohmann::json operator "" _json(const char* s, std::size_t n)
+inline cppcoro::task<nlohmann::json> operator "" _json(const char* s, std::size_t n)
 {
-    return nlohmann::json::parse(s, s + n);
+    co_return co_await nlohmann::json::parse(s, s + n);
 }
 
 /// @brief user-defined string literal for JSON pointer
@@ -4745,6 +4746,7 @@ inline nlohmann::json::json_pointer operator "" _json_pointer(const char* s, std
 {
     return nlohmann::json::json_pointer(std::string(s, n));
 }
+#endif
 
 #include <nlohmann/detail/macro_unscope.hpp>
 

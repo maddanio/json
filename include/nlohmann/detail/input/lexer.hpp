@@ -14,6 +14,8 @@
 #include <nlohmann/detail/input/position_t.hpp>
 #include <nlohmann/detail/macro_scope.hpp>
 
+#include <cppcoro/task.hpp>
+
 namespace nlohmann
 {
 namespace detail
@@ -158,7 +160,7 @@ class lexer : public lexer_base<BasicJsonType>
     @return codepoint (0x0000..0xFFFF) or -1 in case of an error (e.g. EOF or
             non-hex character)
     */
-    int get_codepoint()
+    cppcoro::task<int> get_codepoint()
     {
         // this function only makes sense after reading `\u`
         JSON_ASSERT(current == 'u');
@@ -167,7 +169,7 @@ class lexer : public lexer_base<BasicJsonType>
         const auto factors = { 12u, 8u, 4u, 0u };
         for (const auto factor : factors)
         {
-            get();
+            co_await get();
 
             if (current >= '0' && current <= '9')
             {
@@ -183,12 +185,12 @@ class lexer : public lexer_base<BasicJsonType>
             }
             else
             {
-                return -1;
+                co_return -1;
             }
         }
 
         JSON_ASSERT(0x0000 <= codepoint && codepoint <= 0xFFFF);
-        return codepoint;
+        co_return codepoint;
     }
 
     /*!
@@ -206,14 +208,14 @@ class lexer : public lexer_base<BasicJsonType>
 
     @return true if and only if no range violation was detected
     */
-    bool next_byte_in_range(std::initializer_list<char_int_type> ranges)
+    cppcoro::task<bool> next_byte_in_range(std::initializer_list<char_int_type> ranges)
     {
         JSON_ASSERT(ranges.size() == 2 || ranges.size() == 4 || ranges.size() == 6);
         add(current);
 
         for (auto range = ranges.begin(); range != ranges.end(); ++range)
         {
-            get();
+            co_await get();
             if (JSON_HEDLEY_LIKELY(*range <= current && current <= *(++range)))
             {
                 add(current);
@@ -221,11 +223,11 @@ class lexer : public lexer_base<BasicJsonType>
             else
             {
                 error_message = "invalid string: ill-formed UTF-8 byte";
-                return false;
+                co_return false;
             }
         }
 
-        return true;
+        co_return true;
     }
 
     /*!
@@ -243,7 +245,7 @@ class lexer : public lexer_base<BasicJsonType>
     @note In case of errors, variable error_message contains a textual
           description.
     */
-    token_type scan_string()
+    cppcoro::task<token_type> scan_string()
     {
         // reset token_buffer (ignore opening quote)
         reset();
@@ -254,25 +256,25 @@ class lexer : public lexer_base<BasicJsonType>
         while (true)
         {
             // get next character
-            switch (get())
+            switch (co_await get())
             {
                 // end of file while parsing string
                 case std::char_traits<char_type>::eof():
                 {
                     error_message = "invalid string: missing closing quote";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 // closing quote
                 case '\"':
                 {
-                    return token_type::value_string;
+                    co_return token_type::value_string;
                 }
 
                 // escapes
                 case '\\':
                 {
-                    switch (get())
+                    switch (co_await get())
                     {
                         // quotation mark
                         case '\"':
@@ -310,27 +312,27 @@ class lexer : public lexer_base<BasicJsonType>
                         // unicode escapes
                         case 'u':
                         {
-                            const int codepoint1 = get_codepoint();
+                            const int codepoint1 = co_await get_codepoint();
                             int codepoint = codepoint1; // start with codepoint1
 
                             if (JSON_HEDLEY_UNLIKELY(codepoint1 == -1))
                             {
                                 error_message = "invalid string: '\\u' must be followed by 4 hex digits";
-                                return token_type::parse_error;
+                                co_return token_type::parse_error;
                             }
 
                             // check if code point is a high surrogate
                             if (0xD800 <= codepoint1 && codepoint1 <= 0xDBFF)
                             {
                                 // expect next \uxxxx entry
-                                if (JSON_HEDLEY_LIKELY(get() == '\\' && get() == 'u'))
+                                if (JSON_HEDLEY_LIKELY(co_await get() == '\\' && co_await get() == 'u'))
                                 {
-                                    const int codepoint2 = get_codepoint();
+                                    const int codepoint2 = co_await get_codepoint();
 
                                     if (JSON_HEDLEY_UNLIKELY(codepoint2 == -1))
                                     {
                                         error_message = "invalid string: '\\u' must be followed by 4 hex digits";
-                                        return token_type::parse_error;
+                                        co_return token_type::parse_error;
                                     }
 
                                     // check if codepoint2 is a low surrogate
@@ -350,13 +352,13 @@ class lexer : public lexer_base<BasicJsonType>
                                     else
                                     {
                                         error_message = "invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF";
-                                        return token_type::parse_error;
+                                        co_return token_type::parse_error;
                                     }
                                 }
                                 else
                                 {
                                     error_message = "invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF";
-                                    return token_type::parse_error;
+                                    co_return token_type::parse_error;
                                 }
                             }
                             else
@@ -364,7 +366,7 @@ class lexer : public lexer_base<BasicJsonType>
                                 if (JSON_HEDLEY_UNLIKELY(0xDC00 <= codepoint1 && codepoint1 <= 0xDFFF))
                                 {
                                     error_message = "invalid string: surrogate U+DC00..U+DFFF must follow U+D800..U+DBFF";
-                                    return token_type::parse_error;
+                                    co_return token_type::parse_error;
                                 }
                             }
 
@@ -405,7 +407,7 @@ class lexer : public lexer_base<BasicJsonType>
                         // other characters after escape
                         default:
                             error_message = "invalid string: forbidden character after backslash";
-                            return token_type::parse_error;
+                            co_return token_type::parse_error;
                     }
 
                     break;
@@ -415,193 +417,193 @@ class lexer : public lexer_base<BasicJsonType>
                 case 0x00:
                 {
                     error_message = "invalid string: control character U+0000 (NUL) must be escaped to \\u0000";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x01:
                 {
                     error_message = "invalid string: control character U+0001 (SOH) must be escaped to \\u0001";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x02:
                 {
                     error_message = "invalid string: control character U+0002 (STX) must be escaped to \\u0002";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x03:
                 {
                     error_message = "invalid string: control character U+0003 (ETX) must be escaped to \\u0003";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x04:
                 {
                     error_message = "invalid string: control character U+0004 (EOT) must be escaped to \\u0004";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x05:
                 {
                     error_message = "invalid string: control character U+0005 (ENQ) must be escaped to \\u0005";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x06:
                 {
                     error_message = "invalid string: control character U+0006 (ACK) must be escaped to \\u0006";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x07:
                 {
                     error_message = "invalid string: control character U+0007 (BEL) must be escaped to \\u0007";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x08:
                 {
                     error_message = "invalid string: control character U+0008 (BS) must be escaped to \\u0008 or \\b";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x09:
                 {
                     error_message = "invalid string: control character U+0009 (HT) must be escaped to \\u0009 or \\t";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0A:
                 {
                     error_message = "invalid string: control character U+000A (LF) must be escaped to \\u000A or \\n";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0B:
                 {
                     error_message = "invalid string: control character U+000B (VT) must be escaped to \\u000B";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0C:
                 {
                     error_message = "invalid string: control character U+000C (FF) must be escaped to \\u000C or \\f";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0D:
                 {
                     error_message = "invalid string: control character U+000D (CR) must be escaped to \\u000D or \\r";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0E:
                 {
                     error_message = "invalid string: control character U+000E (SO) must be escaped to \\u000E";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x0F:
                 {
                     error_message = "invalid string: control character U+000F (SI) must be escaped to \\u000F";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x10:
                 {
                     error_message = "invalid string: control character U+0010 (DLE) must be escaped to \\u0010";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x11:
                 {
                     error_message = "invalid string: control character U+0011 (DC1) must be escaped to \\u0011";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x12:
                 {
                     error_message = "invalid string: control character U+0012 (DC2) must be escaped to \\u0012";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x13:
                 {
                     error_message = "invalid string: control character U+0013 (DC3) must be escaped to \\u0013";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x14:
                 {
                     error_message = "invalid string: control character U+0014 (DC4) must be escaped to \\u0014";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x15:
                 {
                     error_message = "invalid string: control character U+0015 (NAK) must be escaped to \\u0015";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x16:
                 {
                     error_message = "invalid string: control character U+0016 (SYN) must be escaped to \\u0016";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x17:
                 {
                     error_message = "invalid string: control character U+0017 (ETB) must be escaped to \\u0017";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x18:
                 {
                     error_message = "invalid string: control character U+0018 (CAN) must be escaped to \\u0018";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x19:
                 {
                     error_message = "invalid string: control character U+0019 (EM) must be escaped to \\u0019";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1A:
                 {
                     error_message = "invalid string: control character U+001A (SUB) must be escaped to \\u001A";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1B:
                 {
                     error_message = "invalid string: control character U+001B (ESC) must be escaped to \\u001B";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1C:
                 {
                     error_message = "invalid string: control character U+001C (FS) must be escaped to \\u001C";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1D:
                 {
                     error_message = "invalid string: control character U+001D (GS) must be escaped to \\u001D";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1E:
                 {
                     error_message = "invalid string: control character U+001E (RS) must be escaped to \\u001E";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 case 0x1F:
                 {
                     error_message = "invalid string: control character U+001F (US) must be escaped to \\u001F";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
 
                 // U+0020..U+007F (except U+0022 (quote) and U+005C (backspace))
@@ -736,9 +738,9 @@ class lexer : public lexer_base<BasicJsonType>
                 case 0xDE:
                 case 0xDF:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!next_byte_in_range({0x80, 0xBF})))
+                    if (JSON_HEDLEY_UNLIKELY(!co_await next_byte_in_range({0x80, 0xBF})))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -746,9 +748,9 @@ class lexer : public lexer_base<BasicJsonType>
                 // U+0800..U+0FFF: bytes E0 A0..BF 80..BF
                 case 0xE0:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0xA0, 0xBF, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0xA0, 0xBF, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -770,9 +772,9 @@ class lexer : public lexer_base<BasicJsonType>
                 case 0xEE:
                 case 0xEF:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0x80, 0xBF, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0x80, 0xBF, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -780,9 +782,9 @@ class lexer : public lexer_base<BasicJsonType>
                 // U+D000..U+D7FF: bytes ED 80..9F 80..BF
                 case 0xED:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0x80, 0x9F, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0x80, 0x9F, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -790,9 +792,9 @@ class lexer : public lexer_base<BasicJsonType>
                 // U+10000..U+3FFFF F0 90..BF 80..BF 80..BF
                 case 0xF0:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0x90, 0xBF, 0x80, 0xBF, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0x90, 0xBF, 0x80, 0xBF, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -802,9 +804,9 @@ class lexer : public lexer_base<BasicJsonType>
                 case 0xF2:
                 case 0xF3:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0x80, 0xBF, 0x80, 0xBF, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0x80, 0xBF, 0x80, 0xBF, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -812,9 +814,9 @@ class lexer : public lexer_base<BasicJsonType>
                 // U+100000..U+10FFFF F4 80..8F 80..BF 80..BF
                 case 0xF4:
                 {
-                    if (JSON_HEDLEY_UNLIKELY(!(next_byte_in_range({0x80, 0x8F, 0x80, 0xBF, 0x80, 0xBF}))))
+                    if (JSON_HEDLEY_UNLIKELY(!(co_await next_byte_in_range({0x80, 0x8F, 0x80, 0xBF, 0x80, 0xBF}))))
                     {
-                        return token_type::parse_error;
+                        co_return token_type::parse_error;
                     }
                     break;
                 }
@@ -823,7 +825,7 @@ class lexer : public lexer_base<BasicJsonType>
                 default:
                 {
                     error_message = "invalid string: ill-formed UTF-8 byte";
-                    return token_type::parse_error;
+                    co_return token_type::parse_error;
                 }
             }
         }
@@ -833,22 +835,22 @@ class lexer : public lexer_base<BasicJsonType>
      * @brief scan a comment
      * @return whether comment could be scanned successfully
      */
-    bool scan_comment()
+    cppcoro::task<bool> scan_comment()
     {
-        switch (get())
+        switch (co_await get())
         {
             // single-line comments skip input until a newline or EOF is read
             case '/':
             {
                 while (true)
                 {
-                    switch (get())
+                    switch (co_await get())
                     {
                         case '\n':
                         case '\r':
                         case std::char_traits<char_type>::eof():
                         case '\0':
-                            return true;
+                            co_return true;
 
                         default:
                             break;
@@ -861,21 +863,21 @@ class lexer : public lexer_base<BasicJsonType>
             {
                 while (true)
                 {
-                    switch (get())
+                    switch (co_await get())
                     {
                         case std::char_traits<char_type>::eof():
                         case '\0':
                         {
                             error_message = "invalid comment; missing closing '*/'";
-                            return false;
+                            co_return false;
                         }
 
                         case '*':
                         {
-                            switch (get())
+                            switch (co_await get())
                             {
                                 case '/':
-                                    return true;
+                                    co_return true;
 
                                 default:
                                 {
@@ -895,7 +897,7 @@ class lexer : public lexer_base<BasicJsonType>
             default:
             {
                 error_message = "invalid comment; expecting '/' or '*' after '/'";
-                return false;
+                co_return false;
             }
         }
     }
@@ -958,7 +960,7 @@ class lexer : public lexer_base<BasicJsonType>
           locale's decimal point is used instead of `.` to work with the
           locale-dependent converters.
     */
-    token_type scan_number()  // lgtm [cpp/use-of-goto]
+    cppcoro::task<token_type> scan_number()  // lgtm [cpp/use-of-goto]
     {
         // reset token_buffer to store the number's bytes
         reset();
@@ -1004,7 +1006,7 @@ class lexer : public lexer_base<BasicJsonType>
 scan_number_minus:
         // state: we just parsed a leading minus sign
         number_type = token_type::value_integer;
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             {
@@ -1029,13 +1031,13 @@ scan_number_minus:
             default:
             {
                 error_message = "invalid number; expected digit after '-'";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
         }
 
 scan_number_zero:
         // state: we just parse a zero (maybe with a leading minus sign)
-        switch (get())
+        switch (co_await get())
         {
             case '.':
             {
@@ -1056,7 +1058,7 @@ scan_number_zero:
 
 scan_number_any1:
         // state: we just parsed a number 0-9 (maybe with a leading minus sign)
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             case '1':
@@ -1093,7 +1095,7 @@ scan_number_any1:
 scan_number_decimal1:
         // state: we just parsed a decimal point
         number_type = token_type::value_float;
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             case '1':
@@ -1113,13 +1115,13 @@ scan_number_decimal1:
             default:
             {
                 error_message = "invalid number; expected digit after '.'";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
         }
 
 scan_number_decimal2:
         // we just parsed at least one number after a decimal point
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             case '1':
@@ -1150,7 +1152,7 @@ scan_number_decimal2:
 scan_number_exponent:
         // we just parsed an exponent
         number_type = token_type::value_float;
-        switch (get())
+        switch (co_await get())
         {
             case '+':
             case '-':
@@ -1178,13 +1180,13 @@ scan_number_exponent:
             {
                 error_message =
                     "invalid number; expected '+', '-', or digit after exponent";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
         }
 
 scan_number_sign:
         // we just parsed an exponent sign
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             case '1':
@@ -1204,13 +1206,13 @@ scan_number_sign:
             default:
             {
                 error_message = "invalid number; expected digit after exponent sign";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
         }
 
 scan_number_any2:
         // we just parsed a number after the exponent or exponent sign
-        switch (get())
+        switch (co_await get())
         {
             case '0':
             case '1':
@@ -1252,7 +1254,7 @@ scan_number_done:
                 value_unsigned = static_cast<number_unsigned_t>(x);
                 if (value_unsigned == x)
                 {
-                    return token_type::value_unsigned;
+                    co_return token_type::value_unsigned;
                 }
             }
         }
@@ -1268,7 +1270,7 @@ scan_number_done:
                 value_integer = static_cast<number_integer_t>(x);
                 if (value_integer == x)
                 {
-                    return token_type::value_integer;
+                    co_return token_type::value_integer;
                 }
             }
         }
@@ -1280,7 +1282,7 @@ scan_number_done:
         // we checked the number format before
         JSON_ASSERT(endptr == token_buffer.data() + token_buffer.size());
 
-        return token_type::value_float;
+        co_return token_type::value_float;
     }
 
     /*!
@@ -1289,19 +1291,19 @@ scan_number_done:
     @param[in] return_type   the token type to return on success
     */
     JSON_HEDLEY_NON_NULL(2)
-    token_type scan_literal(const char_type* literal_text, const std::size_t length,
+    cppcoro::task<token_type> scan_literal(const char_type* literal_text, const std::size_t length,
                             token_type return_type)
     {
         JSON_ASSERT(std::char_traits<char_type>::to_char_type(current) == literal_text[0]);
         for (std::size_t i = 1; i < length; ++i)
         {
-            if (JSON_HEDLEY_UNLIKELY(std::char_traits<char_type>::to_char_type(get()) != literal_text[i]))
+            if (JSON_HEDLEY_UNLIKELY(std::char_traits<char_type>::to_char_type(co_await get()) != literal_text[i]))
             {
                 error_message = "invalid literal";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
         }
-        return return_type;
+        co_return return_type;
     }
 
     /////////////////////
@@ -1326,7 +1328,7 @@ scan_number_done:
 
     @return character read from the input
     */
-    char_int_type get()
+    cppcoro::task<char_int_type> get()
     {
         ++position.chars_read_total;
         ++position.chars_read_current_line;
@@ -1338,7 +1340,7 @@ scan_number_done:
         }
         else
         {
-            current = ia.get_character();
+            current = co_await ia.get_character();
         }
 
         if (JSON_HEDLEY_LIKELY(current != std::char_traits<char_type>::eof()))
@@ -1352,7 +1354,7 @@ scan_number_done:
             position.chars_read_current_line = 0;
         }
 
-        return current;
+        co_return current;
     }
 
     /*!
@@ -1475,89 +1477,89 @@ scan_number_done:
     @brief skip the UTF-8 byte order mark
     @return true iff there is no BOM or the correct BOM has been skipped
     */
-    bool skip_bom()
+    cppcoro::task<bool> skip_bom()
     {
-        if (get() == 0xEF)
+        if (co_await get() == 0xEF)
         {
             // check if we completely parse the BOM
-            return get() == 0xBB && get() == 0xBF;
+            co_return co_await get() == 0xBB && co_await get() == 0xBF;
         }
 
         // the first character is not the beginning of the BOM; unget it to
         // process is later
         unget();
-        return true;
+        co_return true;
     }
 
-    void skip_whitespace()
+    cppcoro::task<> skip_whitespace()
     {
         do
         {
-            get();
+            co_await get();
         }
         while (current == ' ' || current == '\t' || current == '\n' || current == '\r');
     }
 
-    token_type scan()
+    cppcoro::task<token_type> scan()
     {
         // initially, skip the BOM
-        if (position.chars_read_total == 0 && !skip_bom())
+        if (position.chars_read_total == 0 && !co_await skip_bom())
         {
             error_message = "invalid BOM; must be 0xEF 0xBB 0xBF if given";
-            return token_type::parse_error;
+            co_return token_type::parse_error;
         }
 
         // read next character and ignore whitespace
-        skip_whitespace();
+        co_await skip_whitespace();
 
         // ignore comments
         while (ignore_comments && current == '/')
         {
-            if (!scan_comment())
+            if (!co_await scan_comment())
             {
-                return token_type::parse_error;
+                co_return token_type::parse_error;
             }
 
             // skip following whitespace
-            skip_whitespace();
+            co_await skip_whitespace();
         }
 
         switch (current)
         {
             // structural characters
             case '[':
-                return token_type::begin_array;
+                co_return token_type::begin_array;
             case ']':
-                return token_type::end_array;
+                co_return token_type::end_array;
             case '{':
-                return token_type::begin_object;
+                co_return token_type::begin_object;
             case '}':
-                return token_type::end_object;
+                co_return token_type::end_object;
             case ':':
-                return token_type::name_separator;
+                co_return token_type::name_separator;
             case ',':
-                return token_type::value_separator;
+                co_return token_type::value_separator;
 
             // literals
             case 't':
             {
                 std::array<char_type, 4> true_literal = {{static_cast<char_type>('t'), static_cast<char_type>('r'), static_cast<char_type>('u'), static_cast<char_type>('e')}};
-                return scan_literal(true_literal.data(), true_literal.size(), token_type::literal_true);
+                co_return co_await scan_literal(true_literal.data(), true_literal.size(), token_type::literal_true);
             }
             case 'f':
             {
                 std::array<char_type, 5> false_literal = {{static_cast<char_type>('f'), static_cast<char_type>('a'), static_cast<char_type>('l'), static_cast<char_type>('s'), static_cast<char_type>('e')}};
-                return scan_literal(false_literal.data(), false_literal.size(), token_type::literal_false);
+                co_return co_await scan_literal(false_literal.data(), false_literal.size(), token_type::literal_false);
             }
             case 'n':
             {
                 std::array<char_type, 4> null_literal = {{static_cast<char_type>('n'), static_cast<char_type>('u'), static_cast<char_type>('l'), static_cast<char_type>('l')}};
-                return scan_literal(null_literal.data(), null_literal.size(), token_type::literal_null);
+                co_return co_await scan_literal(null_literal.data(), null_literal.size(), token_type::literal_null);
             }
 
             // string
             case '\"':
-                return scan_string();
+                co_return co_await scan_string();
 
             // number
             case '-':
@@ -1571,18 +1573,18 @@ scan_number_done:
             case '7':
             case '8':
             case '9':
-                return scan_number();
+                co_return co_await scan_number();
 
             // end of input (the null byte is needed when parsing from
             // string literals)
             case '\0':
             case std::char_traits<char_type>::eof():
-                return token_type::end_of_input;
+                co_return token_type::end_of_input;
 
             // error
             default:
                 error_message = "invalid literal";
-                return token_type::parse_error;
+                co_return token_type::parse_error;
         }
     }
 

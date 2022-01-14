@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.1)
 ##
 project(nlohmann_json VERSION 3.10.5 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+
 ##
 ## MAIN_PROJECT CHECK
 ## determine if nlohmann_json is built as a subproject (using add_subdirectory) or if it is the main project
@@ -102,6 +104,20 @@ target_include_directories(
     ${NLOHMANN_JSON_SYSTEM_INCLUDE} INTERFACE
     $<BUILD_INTERFACE:${NLOHMANN_JSON_INCLUDE_BUILD_DIR}>
     $<INSTALL_INTERFACE:include>
+)
+
+set(CPPCORO_INCLUDE_BUILD_DIR "${PROJECT_SOURCE_DIR}/cppcoro/include")
+
+target_include_directories(
+    ${NLOHMANN_JSON_TARGET_NAME}
+    INTERFACE
+    $<BUILD_INTERFACE:${CPPCORO_INCLUDE_BUILD_DIR}>
+)
+
+target_link_libraries(
+    ${NLOHMANN_JSON_TARGET_NAME}
+    INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/cppcoro/build/darwin_x64_clang13.0.0_debug/lib/libcppcoro.a"
 )
 
 ## add debug view definition file for msvc (natvis)
