@@ -81,7 +81,7 @@ class parser
     @throw parse_error.102 if to_unicode fails or surrogate error
     @throw parse_error.103 if to_unicode fails
     */
-    cppcoro::task<> parse(const bool strict, BasicJsonType& result)
+    typename InputAdapterType::template coroutine_type<> parse(const bool strict, BasicJsonType& result)
     {
         // read first token
         co_await get_token();
@@ -170,7 +170,7 @@ class parser
   private:
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
-    cppcoro::task<bool> sax_parse_internal(SAX* sax)
+    typename InputAdapterType::template coroutine_type<bool> sax_parse_internal(SAX* sax)
     {
         // stack to remember the hierarchy of structured values we are parsing
         // true = array; false = object
@@ -451,7 +451,7 @@ class parser
     }
 
     /// get next token from lexer
-    cppcoro::task<token_type> get_token()
+    typename InputAdapterType::template coroutine_type<token_type> get_token()
     {
         co_return last_token = co_await m_lexer.scan();
     }
