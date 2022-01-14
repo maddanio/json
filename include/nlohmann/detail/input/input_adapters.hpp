@@ -10,6 +10,8 @@
 #include <type_traits> // enable_if, is_base_of, is_pointer, is_integral, remove_pointer
 #include <utility> // pair, declval
 
+#include <cppcoro/task.hpp>
+
 #ifndef JSON_NO_IO
     #include <cstdio>   // FILE *
     #include <istream>  // istream
@@ -38,6 +40,7 @@ class file_input_adapter
 {
   public:
     using char_type = char;
+    template<typename T=void> using coroutine_type = cppcoro::task<T>;
 
     JSON_HEDLEY_NON_NULL(2)
     explicit file_input_adapter(std::FILE* f) noexcept
@@ -51,9 +54,9 @@ class file_input_adapter
     file_input_adapter& operator=(file_input_adapter&&) = delete;
     ~file_input_adapter() = default;
 
-    std::char_traits<char>::int_type get_character() noexcept
+    cppcoro::task<std::char_traits<char>::int_type> get_character() noexcept
     {
-        return std::fgetc(m_file);
+        co_return std::fgetc(m_file);
     }
 
   private:
@@ -75,6 +78,7 @@ class input_stream_adapter
 {
   public:
     using char_type = char;
+    template<typename T=void> using coroutine_type = cppcoro::task<T>;
 
     ~input_stream_adapter()
     {
@@ -105,7 +109,7 @@ class input_stream_adapter
     // std::istream/std::streambuf use std::char_traits<char>::to_int_type, to
     // ensure that std::char_traits<char>::eof() and the character 0xFF do not
     // end up as the same value, e.g. 0xFFFFFFFF.
-    std::char_traits<char>::int_type get_character()
+    cppcoro::task<std::char_traits<char>::int_type> get_character()
     {
         auto res = sb->sbumpc();
         // set eof manually, as we don't use the istream interface.
@@ -113,7 +117,7 @@ class input_stream_adapter
         {
             is->clear(is->rdstate() | std::ios::eofbit);
         }
-        return res;
+        co_return res;
     }
 
   private:
@@ -130,21 +134,22 @@ class iterator_input_adapter
 {
   public:
     using char_type = typename std::iterator_traits<IteratorType>::value_type;
+    template<typename T=void> using coroutine_type = cppcoro::task<T>;
 
     iterator_input_adapter(IteratorType first, IteratorType last)
         : current(std::move(first)), end(std::move(last))
     {}
 
-    typename std::char_traits<char_type>::int_type get_character()
+    cppcoro::task<typename std::char_traits<char_type>::int_type> get_character()
     {
         if (JSON_HEDLEY_LIKELY(current != end))
         {
             auto result = std::char_traits<char_type>::to_int_type(*current);
             std::advance(current, 1);
-            return result;
+            co_return result;
         }
 
-        return std::char_traits<char_type>::eof();
+        co_return std::char_traits<char_type>::eof();
     }
 
   private:
@@ -290,11 +295,12 @@ class wide_string_input_adapter
 {
   public:
     using char_type = char;
+    template<typename T=void> using coroutine_type = cppcoro::task<T>;
 
     wide_string_input_adapter(BaseInputAdapter base)
         : base_adapter(base) {}
 
-    typename std::char_traits<char>::int_type get_character() noexcept
+    cppcoro::task<typename std::char_traits<char>::int_type> get_character() noexcept
     {
         // check if buffer needs to be filled
         if (utf8_bytes_index == utf8_bytes_filled)
@@ -308,7 +314,7 @@ class wide_string_input_adapter
         // use buffer
         JSON_ASSERT(utf8_bytes_filled > 0);
         JSON_ASSERT(utf8_bytes_index < utf8_bytes_filled);
-        return utf8_bytes[utf8_bytes_index++];
+        co_return utf8_bytes[utf8_bytes_index++];
     }
 
   private:

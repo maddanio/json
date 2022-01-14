@@ -27,7 +27,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include "cppcoro/sync_wait.hpp"
 #include "doctest_compatibility.h"
+#include "my_input_adapter.hpp"
 
 #define JSON_TESTS_PRIVATE
 #include <nlohmann/json.hpp>

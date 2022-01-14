@@ -28,10 +28,10 @@ SOFTWARE.
 */
 
 #include "doctest_compatibility.h"
+#include "my_input_adapter.hpp"
 
 #define JSON_TESTS_PRIVATE
 #include <nlohmann/json.hpp>
-#include <cppcoro/task.hpp>
 #include <cppcoro/sync_wait.hpp>
 using nlohmann::json;
 
@@ -39,38 +39,6 @@ namespace
 {
 
 
-class my_input_adapter_t
-{
-public:
-    using char_type = char;
-    template<typename T=void> using coroutine_type = cppcoro::task<T>;
-
-    my_input_adapter_t(const char* s)
-    : _s{s}
-    {}
-
-    cppcoro::task<std::char_traits<char>::int_type> get_character() noexcept
-    {
-        if (_done)
-        {
-            co_return std::char_traits<char_type>::eof();
-        }
-        auto c = *_s++;
-        if (c == 0)
-        {
-            _done = true;
-            co_return std::char_traits<char_type>::eof();
-        }
-        else
-        {
-            co_return c;
-        }
-    }
-
-private:
-    bool _done = false;
-    const char* _s;
-};
 
 // shortcut to scan a string literal
 json::lexer::token_type scan_string(const char* s, bool ignore_comments = false);

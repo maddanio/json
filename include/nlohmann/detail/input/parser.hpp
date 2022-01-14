@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cppcoro/sync_wait.hpp"
 #include <cmath> // isfinite
 #include <cstdint> // uint8_t
 #include <functional> // function
@@ -15,6 +16,8 @@
 #include <nlohmann/detail/meta/is_sax.hpp>
 #include <nlohmann/detail/value_t.hpp>
 #include <cppcoro/task.hpp>
+
+#include <iostream>
 
 namespace nlohmann
 {
@@ -58,6 +61,7 @@ class parser
     using string_t = typename BasicJsonType::string_t;
     using lexer_t = lexer<BasicJsonType, InputAdapterType>;
     using token_type = typename lexer_t::token_type;
+    template<typename T> using coroutine_type = typename InputAdapterType::template coroutine_type<T>;
 
   public:
     /// a parser reading from an input adapter
@@ -81,10 +85,14 @@ class parser
     @throw parse_error.102 if to_unicode fails or surrogate error
     @throw parse_error.103 if to_unicode fails
     */
-    typename InputAdapterType::template coroutine_type<> parse(const bool strict, BasicJsonType& result)
+    void parse(const bool strict, BasicJsonType& result)
+    {
+        cppcoro::sync_wait(parse_coro(strict, result));
+    }
+
+    typename InputAdapterType::template coroutine_type<> parse_coro(const bool strict, BasicJsonType& result)
     {
         // read first token
-        co_await get_token();
         if (callback)
         {
             json_sax_dom_callback_parser<BasicJsonType> sdp(result, callback, allow_exceptions);
@@ -116,7 +124,7 @@ class parser
         else
         {
             json_sax_dom_parser<BasicJsonType> sdp(result, allow_exceptions);
-            auto r = sax_parse_internal(&sdp);
+            co_await sax_parse_internal(&sdp);
 
             // in strict mode, input must be completely read
             if (strict && (co_await get_token() != token_type::end_of_input))
@@ -149,29 +157,43 @@ class parser
         return sax_parse(&sax_acceptor, strict);
     }
 
+    coroutine_type<bool> accept_coro(const bool strict = true)
+    {
+        json_sax_acceptor<BasicJsonType> sax_acceptor;
+        co_return co_await sax_parse_coro(&sax_acceptor, strict);
+    }
+
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
     bool sax_parse(SAX* sax, const bool strict = true)
     {
+        return cppcoro::sync_wait(sax_parse_coro(sax, strict));
+    }
+
+    template<typename SAX>
+    JSON_HEDLEY_NON_NULL(2)
+    coroutine_type<bool> sax_parse_coro(SAX* sax, const bool strict = true)
+    {
         (void)detail::is_sax_static_asserts<SAX, BasicJsonType> {};
-        const bool result = sax_parse_internal(sax);
+        const bool result = co_await sax_parse_internal(sax);
 
         // strict mode: next byte must be EOF
-        if (result && strict && (get_token() != token_type::end_of_input))
+        if (result && strict && (co_await get_token() != token_type::end_of_input))
         {
-            return sax->parse_error(m_lexer.get_position(),
+            co_return sax->parse_error(m_lexer.get_position(),
                                     m_lexer.get_token_string(),
                                     parse_error::create(101, m_lexer.get_position(), exception_message(token_type::end_of_input, "value"), BasicJsonType()));
         }
 
-        return result;
+        co_return result;
     }
 
   private:
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
-    typename InputAdapterType::template coroutine_type<bool> sax_parse_internal(SAX* sax)
+    coroutine_type<bool> sax_parse_internal(SAX* sax)
     {
+        co_await get_token();
         // stack to remember the hierarchy of structured values we are parsing
         // true = array; false = object
         std::vector<bool> states;
@@ -451,9 +473,10 @@ class parser
     }
 
     /// get next token from lexer
-    typename InputAdapterType::template coroutine_type<token_type> get_token()
+    coroutine_type<token_type> get_token()
     {
-        co_return last_token = co_await m_lexer.scan();
+        last_token = co_await m_lexer.scan();
+        co_return last_token;
     }
 
     std::string exception_message(const token_type expected, const std::string& context)
