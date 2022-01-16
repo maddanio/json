@@ -61,7 +61,7 @@ class parser
     using string_t = typename BasicJsonType::string_t;
     using lexer_t = lexer<BasicJsonType, InputAdapterType>;
     using token_type = typename lexer_t::token_type;
-    template<typename T> using coroutine_type = typename InputAdapterType::template coroutine_type<T>;
+    template<typename T> using awaitable_t = typename InputAdapterType::template awaitable_t<T>;
 
   public:
     /// a parser reading from an input adapter
@@ -90,7 +90,7 @@ class parser
         cppcoro::sync_wait(parse_coro(strict, result));
     }
 
-    typename InputAdapterType::template coroutine_type<> parse_coro(const bool strict, BasicJsonType& result)
+    typename InputAdapterType::template awaitable_t<> parse_coro(const bool strict, BasicJsonType& result)
     {
         // read first token
         if (callback)
@@ -157,7 +157,7 @@ class parser
         return sax_parse(&sax_acceptor, strict);
     }
 
-    coroutine_type<bool> accept_coro(const bool strict = true)
+    awaitable_t<bool> accept_coro(const bool strict = true)
     {
         json_sax_acceptor<BasicJsonType> sax_acceptor;
         co_return co_await sax_parse_coro(&sax_acceptor, strict);
@@ -172,7 +172,7 @@ class parser
 
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
-    coroutine_type<bool> sax_parse_coro(SAX* sax, const bool strict = true)
+    awaitable_t<bool> sax_parse_coro(SAX* sax, const bool strict = true)
     {
         (void)detail::is_sax_static_asserts<SAX, BasicJsonType> {};
         const bool result = co_await sax_parse_internal(sax);
@@ -191,7 +191,7 @@ class parser
   private:
     template<typename SAX>
     JSON_HEDLEY_NON_NULL(2)
-    coroutine_type<bool> sax_parse_internal(SAX* sax)
+    awaitable_t<bool> sax_parse_internal(SAX* sax)
     {
         co_await get_token();
         // stack to remember the hierarchy of structured values we are parsing
@@ -473,7 +473,7 @@ class parser
     }
 
     /// get next token from lexer
-    coroutine_type<token_type> get_token()
+    awaitable_t<token_type> get_token()
     {
         last_token = co_await m_lexer.scan();
         co_return last_token;

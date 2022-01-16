@@ -40,7 +40,7 @@ class file_input_adapter
 {
   public:
     using char_type = char;
-    template<typename T=void> using coroutine_type = cppcoro::task<T>;
+    template<typename T=void> using awaitable_t = cppcoro::task<T>;
 
     JSON_HEDLEY_NON_NULL(2)
     explicit file_input_adapter(std::FILE* f) noexcept
@@ -78,7 +78,7 @@ class input_stream_adapter
 {
   public:
     using char_type = char;
-    template<typename T=void> using coroutine_type = cppcoro::task<T>;
+    template<typename T=void> using awaitable_t = cppcoro::task<T>;
 
     ~input_stream_adapter()
     {
@@ -134,7 +134,7 @@ class iterator_input_adapter
 {
   public:
     using char_type = typename std::iterator_traits<IteratorType>::value_type;
-    template<typename T=void> using coroutine_type = cppcoro::task<T>;
+    template<typename T=void> using awaitable_t = cppcoro::task<T>;
 
     iterator_input_adapter(IteratorType first, IteratorType last)
         : current(std::move(first)), end(std::move(last))
@@ -172,8 +172,10 @@ struct wide_string_input_helper;
 template<typename BaseInputAdapter>
 struct wide_string_input_helper<BaseInputAdapter, 4>
 {
+    template<typename T=void> using awaitable_t = typename BaseInputAdapter::template awaitable_t<T>;
+
     // UTF-32
-    static void fill_buffer(BaseInputAdapter& input,
+    static awaitable_t<void> fill_buffer(BaseInputAdapter& input,
                             std::array<std::char_traits<char>::int_type, 4>& utf8_bytes,
                             size_t& utf8_bytes_index,
                             size_t& utf8_bytes_filled)
@@ -188,7 +190,7 @@ struct wide_string_input_helper<BaseInputAdapter, 4>
         else
         {
             // get the current character
-            const auto wc = input.get_character();
+            const auto wc = co_await input.get_character();
 
             // UTF-32 to UTF-8 encoding
             if (wc < 0x80)
@@ -230,8 +232,10 @@ struct wide_string_input_helper<BaseInputAdapter, 4>
 template<typename BaseInputAdapter>
 struct wide_string_input_helper<BaseInputAdapter, 2>
 {
+    template<typename T=void> using awaitable_t = typename BaseInputAdapter::template awaitable_t<T>;
+
     // UTF-16
-    static void fill_buffer(BaseInputAdapter& input,
+    static awaitable_t<void> fill_buffer(BaseInputAdapter& input,
                             std::array<std::char_traits<char>::int_type, 4>& utf8_bytes,
                             size_t& utf8_bytes_index,
                             size_t& utf8_bytes_filled)
@@ -246,7 +250,7 @@ struct wide_string_input_helper<BaseInputAdapter, 2>
         else
         {
             // get the current character
-            const auto wc = input.get_character();
+            const auto wc = co_await input.get_character();
 
             // UTF-16 to UTF-8 encoding
             if (wc < 0x80)
@@ -271,7 +275,7 @@ struct wide_string_input_helper<BaseInputAdapter, 2>
             {
                 if (JSON_HEDLEY_UNLIKELY(!input.empty()))
                 {
-                    const auto wc2 = static_cast<unsigned int>(input.get_character());
+                    const auto wc2 = static_cast<unsigned int>(co_await input.get_character());
                     const auto charcode = 0x10000u + (((static_cast<unsigned int>(wc) & 0x3FFu) << 10u) | (wc2 & 0x3FFu));
                     utf8_bytes[0] = static_cast<std::char_traits<char>::int_type>(0xF0u | (charcode >> 18u));
                     utf8_bytes[1] = static_cast<std::char_traits<char>::int_type>(0x80u | ((charcode >> 12u) & 0x3Fu));
@@ -295,17 +299,17 @@ class wide_string_input_adapter
 {
   public:
     using char_type = char;
-    template<typename T=void> using coroutine_type = cppcoro::task<T>;
+    template<typename T=void> using awaitable_t = typename BaseInputAdapter::template awaitable_t<T>;
 
     wide_string_input_adapter(BaseInputAdapter base)
         : base_adapter(base) {}
 
-    cppcoro::task<typename std::char_traits<char>::int_type> get_character() noexcept
+    awaitable_t<typename std::char_traits<char>::int_type> get_character() noexcept
     {
         // check if buffer needs to be filled
         if (utf8_bytes_index == utf8_bytes_filled)
         {
-            fill_buffer<sizeof(WideCharType)>();
+            co_await fill_buffer<sizeof(WideCharType)>();
 
             JSON_ASSERT(utf8_bytes_filled > 0);
             JSON_ASSERT(utf8_bytes_index == 0);
@@ -321,9 +325,9 @@ class wide_string_input_adapter
     BaseInputAdapter base_adapter;
 
     template<size_t T>
-    void fill_buffer()
+    awaitable_t<void> fill_buffer()
     {
-        wide_string_input_helper<BaseInputAdapter, T>::fill_buffer(base_adapter, utf8_bytes, utf8_bytes_index, utf8_bytes_filled);
+        co_await wide_string_input_helper<BaseInputAdapter, T>::fill_buffer(base_adapter, utf8_bytes, utf8_bytes_index, utf8_bytes_filled);
     }
 
     /// a buffer for UTF-8 bytes

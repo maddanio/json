@@ -28,7 +28,6 @@ SOFTWARE.
 */
 
 #include "doctest_compatibility.h"
-#include "my_input_adapter.hpp"
 
 #define JSON_TESTS_PRIVATE
 #include <nlohmann/json.hpp>
@@ -44,7 +43,7 @@ namespace
 json::lexer::token_type scan_string(const char* s, bool ignore_comments = false);
 json::lexer::token_type scan_string(const char* s, const bool ignore_comments)
 {
-    auto ia = my_input_adapter_t(s);
+    auto ia = nlohmann::detail::input_adapter(s);
     return cppcoro::sync_wait(
         nlohmann::detail::lexer<json, decltype(ia)>(std::move(ia), ignore_comments).scan() // NOLINT(hicpp-move-const-arg,performance-move-const-arg)
     );
@@ -54,7 +53,7 @@ json::lexer::token_type scan_string(const char* s, const bool ignore_comments)
 std::string get_error_message(const char* s, bool ignore_comments = false);
 std::string get_error_message(const char* s, const bool ignore_comments)
 {
-    auto ia = my_input_adapter_t(s);
+    auto ia = nlohmann::detail::input_adapter(s);
     auto lexer = nlohmann::detail::lexer<json, decltype(ia)>(std::move(ia), ignore_comments); // NOLINT(hicpp-move-const-arg,performance-move-const-arg)
     cppcoro::sync_wait(lexer.scan());
     return lexer.get_error_message();

@@ -63,7 +63,7 @@ SOFTWARE.
 #include <nlohmann/detail/conversions/to_json.hpp>
 #include <nlohmann/detail/exceptions.hpp>
 #include <nlohmann/detail/hash.hpp>
-//#include <nlohmann/detail/input/binary_reader.hpp>
+#include <nlohmann/detail/input/binary_reader.hpp>
 #include <nlohmann/detail/input/input_adapters.hpp>
 #include <nlohmann/detail/input/lexer.hpp>
 #include <nlohmann/detail/input/parser.hpp>
@@ -78,7 +78,7 @@ SOFTWARE.
 #include <nlohmann/detail/string_escape.hpp>
 #include <nlohmann/detail/meta/cpp_future.hpp>
 #include <nlohmann/detail/meta/type_traits.hpp>
-//#include <nlohmann/detail/output/binary_writer.hpp>
+#include <nlohmann/detail/output/binary_writer.hpp>
 #include <nlohmann/detail/output/output_adapters.hpp>
 #include <nlohmann/detail/output/serializer.hpp>
 #include <nlohmann/detail/value_t.hpp>
@@ -127,10 +127,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     friend ::nlohmann::detail::serializer<basic_json>;
     template<typename BasicJsonType>
     friend class ::nlohmann::detail::iter_impl;
-    //template<typename BasicJsonType, typename CharType>
-    //friend class ::nlohmann::detail::binary_writer;
-    //template<typename BasicJsonType, typename InputType, typename SAX>
-    //friend class ::nlohmann::detail::binary_reader;
+    template<typename BasicJsonType, typename CharType>
+    friend class ::nlohmann::detail::binary_writer;
+    template<typename BasicJsonType, typename InputType, typename SAX>
+    friend class ::nlohmann::detail::binary_reader;
     template<typename BasicJsonType>
     friend class ::nlohmann::detail::json_sax_dom_parser;
     template<typename BasicJsonType>
@@ -169,9 +169,9 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     template<typename CharType>
     using output_adapter_t = ::nlohmann::detail::output_adapter_t<CharType>;
 
-    //template<typename InputType>
-    //using binary_reader = ::nlohmann::detail::binary_reader<basic_json, InputType>;
-    //template<typename CharType> using binary_writer = ::nlohmann::detail::binary_writer<basic_json, CharType>;
+    template<typename InputType>
+    using binary_reader = ::nlohmann::detail::binary_reader<basic_json, InputType>;
+    template<typename CharType> using binary_writer = ::nlohmann::detail::binary_writer<basic_json, CharType>;
 
   JSON_PRIVATE_UNLESS_TESTED:
     using serializer = ::nlohmann::detail::serializer<basic_json>;
@@ -185,7 +185,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     /// how to treat decoding errors
     using error_handler_t = detail::error_handler_t;
     /// how to treat CBOR tags
-    //using cbor_tag_handler_t = detail::cbor_tag_handler_t;
+    using cbor_tag_handler_t = detail::cbor_tag_handler_t;
     /// helper type for initializer lists of basic_json values
     using initializer_list_t = std::initializer_list<detail::json_ref<basic_json>>;
 
@@ -3722,13 +3722,9 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                           const bool ignore_comments = false)
     {
         auto ia = detail::input_adapter(std::forward<InputType>(i));
-        #if 0
         return format == input_format_t::json
                ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia)).sax_parse(format, sax, strict);
-        #else
-        return parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict);
-        #endif
     }
 
     /// @brief generate SAX events
@@ -3741,13 +3737,9 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                           const bool ignore_comments = false)
     {
         auto ia = detail::input_adapter(std::move(first), std::move(last));
-        #if 0
         return format == input_format_t::json
                ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia)).sax_parse(format, sax, strict);
-        #else
-        return parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict);
-        #endif
     }
 
     /// @brief generate SAX events
@@ -3764,15 +3756,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                           const bool ignore_comments = false)
     {
         auto ia = i.get();
-        #if 0
         return format == input_format_t::json
                // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
                ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia)).sax_parse(format, sax, strict);
-        #else
-        return parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict);
-        #endif
     }
 #ifndef JSON_NO_IO
     /// @brief deserialize from stream
@@ -3864,7 +3852,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         return result;
     }
 
-#if 0
+#if 1
     /// @brief create a CBOR serialization of a given JSON value
     /// @sa https://json.nlohmann.me/api/basic_json/to_cbor/
     static void to_cbor(const basic_json& j, detail::output_adapter<std::uint8_t> o)

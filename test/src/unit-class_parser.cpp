@@ -29,7 +29,6 @@ SOFTWARE.
 
 #include "cppcoro/sync_wait.hpp"
 #include "doctest_compatibility.h"
-#include "my_input_adapter.hpp"
 
 #define JSON_TESTS_PRIVATE
 #include <nlohmann/json.hpp>

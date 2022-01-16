@@ -67,8 +67,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC" AND CMAKE_CXX_COMPILER_VERSION VER
     unset(compiler_supports_cpp_17)
 endif()
 
-#file(GLOB files src/unit-coro-*.cpp)
-set(files "src/unit-class_lexer.cpp" "src/unit-class_parser.cpp")
+file(GLOB files src/unit-*.cpp)
+#set(files "src/unit-class_lexer.cpp" "src/unit-class_parser.cpp")
 foreach(file ${files})
     get_filename_component(file_basename ${file} NAME_WE)
     string(REGEX REPLACE "unit-([^$]+)" "test-\\1" testcase ${file_basename})

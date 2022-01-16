@@ -17,7 +17,7 @@
 #include <nlohmann/detail/exceptions.hpp>
 #include <nlohmann/detail/macro_scope.hpp>
 #include <nlohmann/detail/meta/cpp_future.hpp>
-//#include <nlohmann/detail/output/binary_writer.hpp>
+#include <nlohmann/detail/output/binary_writer.hpp>
 #include <nlohmann/detail/output/output_adapters.hpp>
 #include <nlohmann/detail/value_t.hpp>
 
