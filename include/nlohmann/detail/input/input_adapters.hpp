@@ -54,7 +54,7 @@ class file_input_adapter
     file_input_adapter& operator=(file_input_adapter&&) = delete;
     ~file_input_adapter() = default;
 
-    cppcoro::task<std::char_traits<char>::int_type> get_character() noexcept
+    awaitable_t<std::char_traits<char>::int_type> get_character() noexcept
     {
         co_return std::fgetc(m_file);
     }
@@ -109,7 +109,7 @@ class input_stream_adapter
     // std::istream/std::streambuf use std::char_traits<char>::to_int_type, to
     // ensure that std::char_traits<char>::eof() and the character 0xFF do not
     // end up as the same value, e.g. 0xFFFFFFFF.
-    cppcoro::task<std::char_traits<char>::int_type> get_character()
+    awaitable_t<std::char_traits<char>::int_type> get_character()
     {
         auto res = sb->sbumpc();
         // set eof manually, as we don't use the istream interface.
@@ -140,7 +140,7 @@ class iterator_input_adapter
         : current(std::move(first)), end(std::move(last))
     {}
 
-    cppcoro::task<typename std::char_traits<char_type>::int_type> get_character()
+    awaitable_t<typename std::char_traits<char_type>::int_type> get_character()
     {
         if (JSON_HEDLEY_LIKELY(current != end))
         {

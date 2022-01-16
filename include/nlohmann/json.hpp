@@ -3852,7 +3852,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         return result;
     }
 
-#if 1
     /// @brief create a CBOR serialization of a given JSON value
     /// @sa https://json.nlohmann.me/api/basic_json/to_cbor/
     static void to_cbor(const basic_json& j, detail::output_adapter<std::uint8_t> o)
@@ -4161,7 +4160,6 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         return res ? result : basic_json(value_t::discarded);
     }
     /// @}
-#endif
 
     //////////////////////////
     // JSON Pointer support //

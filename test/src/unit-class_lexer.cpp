@@ -224,6 +224,7 @@ TEST_CASE("lexer class")
         CHECK((scan_string("/*/* */", false) == json::lexer::token_type::parse_error));
         CHECK(get_error_message("/*/* */", false) == "invalid literal");
     }
+
     SECTION("ignore comments")
     {
         CHECK((scan_string("/", true) == json::lexer::token_type::parse_error));
@@ -235,6 +236,7 @@ TEST_CASE("lexer class")
         CHECK(get_error_message("/*", true) == "invalid comment; missing closing '*/'");
         CHECK((scan_string("/**", true) == json::lexer::token_type::parse_error));
         CHECK(get_error_message("/**", true) == "invalid comment; missing closing '*/'");
+
         CHECK((scan_string("//", true) == json::lexer::token_type::end_of_input));
         CHECK((scan_string("/**/", true) == json::lexer::token_type::end_of_input));
         CHECK((scan_string("/** /", true) == json::lexer::token_type::parse_error));

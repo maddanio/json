@@ -533,11 +533,9 @@ class serializer
                                 }
                                 else
                                 {
-                                    #if 0
                                     string_buffer[bytes++] = detail::binary_writer<BasicJsonType, char>::to_char_type('\xEF');
                                     string_buffer[bytes++] = detail::binary_writer<BasicJsonType, char>::to_char_type('\xBF');
                                     string_buffer[bytes++] = detail::binary_writer<BasicJsonType, char>::to_char_type('\xBD');
-                                    #endif
                                 }
 
                                 // write buffer and reset index; there must be 13 bytes

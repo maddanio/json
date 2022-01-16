@@ -73,7 +73,9 @@ class parser
         , m_lexer(std::move(adapter), skip_comments)
         , allow_exceptions(allow_exceptions_)
     {
-    }
+        // read first token
+        cppcoro::sync_wait(get_token());
+     }
 
     /*!
     @brief public parser interface
@@ -90,9 +92,8 @@ class parser
         cppcoro::sync_wait(parse_coro(strict, result));
     }
 
-    typename InputAdapterType::template awaitable_t<> parse_coro(const bool strict, BasicJsonType& result)
+    awaitable_t<void> parse_coro(const bool strict, BasicJsonType& result)
     {
-        // read first token
         if (callback)
         {
             json_sax_dom_callback_parser<BasicJsonType> sdp(result, callback, allow_exceptions);
@@ -193,7 +194,6 @@ class parser
     JSON_HEDLEY_NON_NULL(2)
     awaitable_t<bool> sax_parse_internal(SAX* sax)
     {
-        co_await get_token();
         // stack to remember the hierarchy of structured values we are parsing
         // true = array; false = object
         std::vector<bool> states;
