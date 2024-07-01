@@ -64,13 +64,14 @@ class serializer
     @param[in] ichar  indentation character to use
     @param[in] error_handler_  how to react on decoding errors
     */
-    serializer(output_adapter_t<char> s, const char ichar,
+    serializer(output_adapter_t<char> s, const char ichar, size_t precision = 1000,
                error_handler_t error_handler_ = error_handler_t::strict)
         : o(std::move(s))
         , loc(std::localeconv())
         , thousands_sep(loc->thousands_sep == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->thousands_sep)))
         , decimal_point(loc->decimal_point == nullptr ? '\0' : std::char_traits<char>::to_char_type(* (loc->decimal_point)))
         , indent_char(ichar)
+        , precision(precision)
         , indent_string(512, indent_char)
         , error_handler(error_handler_)
     {}
@@ -820,7 +821,7 @@ class serializer
     void dump_float(number_float_t x, std::true_type /*is_ieee_single_or_double*/)
     {
         auto* begin = number_buffer.data();
-        auto* end = ::nlohmann::detail::to_chars(begin, begin + number_buffer.size(), x);
+        auto* end = ::nlohmann::detail::to_chars(begin, begin + number_buffer.size(), x, precision);
 
         o->write_characters(begin, static_cast<size_t>(end - begin));
     }
@@ -832,6 +833,8 @@ class serializer
 
         // the actual conversion
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+        char format[100];
+        snprintf(format, 100, "%%.%dg", precision);
         std::ptrdiff_t len = (std::snprintf)(number_buffer.data(), number_buffer.size(), "%.*g", d, x);
 
         // negative value indicates an error
@@ -977,6 +980,8 @@ class serializer
 
     /// the indentation character
     const char indent_char;
+    /// precision for floating point output
+    size_t precision;
     /// the indentation string
     string_t indent_string;
 

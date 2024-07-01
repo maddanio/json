@@ -978,10 +978,11 @@ notation. Otherwise it will be printed in exponential notation.
 JSON_HEDLEY_NON_NULL(1)
 JSON_HEDLEY_RETURNS_NON_NULL
 inline char* format_buffer(char* buf, int len, int decimal_exponent,
-                           int min_exp, int max_exp)
+                           int min_exp, int max_exp, size_t precision)
 {
     JSON_ASSERT(min_exp < 0);
     JSON_ASSERT(max_exp > 0);
+    precision = std::min<size_t>(precision, 1000);
 
     const int k = len;
     const int n = len + decimal_exponent;
@@ -1011,7 +1012,7 @@ inline char* format_buffer(char* buf, int len, int decimal_exponent,
 
         std::memmove(buf + (static_cast<size_t>(n) + 1), buf + n, static_cast<size_t>(k) - static_cast<size_t>(n));
         buf[n] = '.';
-        return buf + (static_cast<size_t>(k) + 1U);
+        return buf + (std::min(n + precision, static_cast<size_t>(k)) + 1U);
     }
 
     if (min_exp < n && n <= 0)
@@ -1023,7 +1024,7 @@ inline char* format_buffer(char* buf, int len, int decimal_exponent,
         buf[0] = '0';
         buf[1] = '.';
         std::memset(buf + 2, '0', static_cast<size_t>(-n));
-        return buf + (2U + static_cast<size_t>(-n) + static_cast<size_t>(k));
+        return buf + std::min(precision + 2, (2U + static_cast<size_t>(-n) + static_cast<size_t>(k)));
     }
 
     if (k == 1)
@@ -1040,7 +1041,7 @@ inline char* format_buffer(char* buf, int len, int decimal_exponent,
 
         std::memmove(buf + 2, buf + 1, static_cast<size_t>(k) - 1);
         buf[1] = '.';
-        buf += 1 + static_cast<size_t>(k);
+        buf += 1 + std::min(precision, static_cast<size_t>(k));
     }
 
     *buf++ = 'e';
@@ -1062,7 +1063,7 @@ format. Returns an iterator pointing past-the-end of the decimal representation.
 template<typename FloatType>
 JSON_HEDLEY_NON_NULL(1, 2)
 JSON_HEDLEY_RETURNS_NON_NULL
-char* to_chars(char* first, const char* last, FloatType value)
+char* to_chars(char* first, const char* last, FloatType value, size_t precision = std::numeric_limits<FloatType>::max_digits10)
 {
     static_cast<void>(last); // maybe unused - fix warning
     JSON_ASSERT(std::isfinite(value));
@@ -1111,7 +1112,7 @@ char* to_chars(char* first, const char* last, FloatType value)
     JSON_ASSERT(last - first >= 2 + (-kMinExp - 1) + std::numeric_limits<FloatType>::max_digits10);
     JSON_ASSERT(last - first >= std::numeric_limits<FloatType>::max_digits10 + 6);
 
-    return dtoa_impl::format_buffer(first, len, decimal_exponent, kMinExp, kMaxExp);
+    return dtoa_impl::format_buffer(first, len, decimal_exponent, kMinExp, kMaxExp, precision);
 }
 
 }  // namespace detail

@@ -1272,10 +1272,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     string_t dump(const int indent = -1,
                   const char indent_char = ' ',
                   const bool ensure_ascii = false,
-                  const error_handler_t error_handler = error_handler_t::strict) const
+                  const error_handler_t error_handler = error_handler_t::strict,
+                  const size_t precision = std::numeric_limits<size_t>::max()) const
     {
         string_t result;
-        serializer s(detail::output_adapter<char, string_t>(result), indent_char, error_handler);
+        serializer s(detail::output_adapter<char, string_t>(result), indent_char, precision, error_handler);
 
         if (indent >= 0)
         {
@@ -3975,15 +3976,17 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     friend std::ostream& operator<<(std::ostream& o, const basic_json& j)
     {
         // read width member and use it as indentation parameter if nonzero
-        const bool pretty_print = o.width() > 0;
-        const auto indentation = pretty_print ? o.width() : 0;
+        const auto width = o.width();
+        const bool pretty_print = width > 0;
+        const auto indentation = pretty_print ? width : 0;
 
         // reset width to 0 for subsequent calls to this stream
         o.width(0);
 
         // do the actual serialization
-        serializer s(detail::output_adapter<char>(o), o.fill());
+        serializer s(detail::output_adapter<char>(o), o.fill(), o.precision());
         s.dump(j, pretty_print, false, static_cast<unsigned int>(indentation));
+
         return o;
     }
 
