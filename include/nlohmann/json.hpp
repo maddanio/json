@@ -177,6 +177,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     /// SAX interface type, see @ref nlohmann::json_sax
     using json_sax_t = json_sax<basic_json>;
 
+    struct with_precision_t {
+        const basic_json_t& json;
+        size_t precision;
+    };
+
     ////////////////
     // exceptions //
     ////////////////
@@ -3973,7 +3978,17 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 #ifndef JSON_NO_IO
     /// @brief serialize to stream
     /// @sa https://json.nlohmann.me/api/basic_json/operator_ltlt/
+    friend std::ostream& operator<<(std::ostream& o, const with_precision_t& jp)
+    {
+        return to_ostream(o, jp.json, jp.precision);
+    }
+
     friend std::ostream& operator<<(std::ostream& o, const basic_json& j)
+    {
+        return to_ostream(o, j);
+    }
+
+    friend std::ostream& to_ostream(std::ostream& o, const basic_json& j, size_t precision = 1000)
     {
         // read width member and use it as indentation parameter if nonzero
         const auto width = o.width();
@@ -3984,8 +3999,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         o.width(0);
 
         // do the actual serialization
-        serializer s(detail::output_adapter<char>(o), o.fill(), o.precision());
+        serializer s(detail::output_adapter<char>(o), o.fill(), precision);
         s.dump(j, pretty_print, false, static_cast<unsigned int>(indentation));
+
+	o.width(width);
 
         return o;
     }
